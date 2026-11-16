@@ -25,6 +25,7 @@ import {
   NEPALI_FESTIVALS,
 } from '../data/bsCalendarData';
 import { NepalTimeState } from '../hooks/useNepalTime';
+import { useNepalWeather } from '../hooks/useNepalWeather';
 import { AppScreen, UserNote } from '../types/app';
 import { IconThemeId } from '../types/theme';
 import {
@@ -52,6 +53,7 @@ import { WeatherAlertSection } from './WeatherAlertSection';
 
 interface HomeScreenProps {
   nepalTime: NepalTimeState;
+  weatherState: ReturnType<typeof useNepalWeather>;
   notes: UserNote[];
   isCloudSynced: boolean;
   preferredRashi: string;
@@ -73,6 +75,7 @@ interface ResolvedFestival extends FestivalEvent {
 
 export function HomeScreen({
   nepalTime,
+  weatherState,
   notes,
   isCloudSynced,
   preferredRashi,
@@ -404,7 +407,7 @@ export function HomeScreen({
 
       {/* CLIMATE SEASONAL GUIDANCE & THRESHOLD ALERTS (Rain, Heat >=38°C, Cold <10°C) */}
       <motion.div variants={staggerCardVariants}>
-        <WeatherAlertSection />
+        <WeatherAlertSection weatherState={weatherState} />
       </motion.div>
 
       {/* QUICK ACTION BUTTONS */}

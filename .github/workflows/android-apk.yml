@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build & Auto-Release Nepal Patro APK
 
 on:
   push:
@@ -11,9 +11,12 @@ on:
       - master
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-apk:
-    name: Build Nepal Patro APK
+    name: Build & Publish Nepal Patro APK
     runs-on: ubuntu-latest
 
     steps:
@@ -31,7 +34,7 @@ jobs:
       - name: Run TypeScript check
         run: npm run lint
 
-      - name: Build production web bundle
+      - name: Build production web bundle & version manifest
         run: npm run build
 
       - name: Sync Capacitor Android project
@@ -68,15 +71,31 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon --stacktrace
 
-      - name: Prepare APK artifact
+      - name: Prepare APK & version artifacts
         run: |
           mkdir -p apk-output
           cp android/app/build/outputs/apk/debug/app-debug.apk apk-output/Nepal-Patro-debug.apk
+          cp dist/version.json apk-output/version.json
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: Nepal-Patro-APK
-          path: apk-output/Nepal-Patro-debug.apk
+          path: apk-output/
           if-no-files-found: error
           retention-days: 30
+
+      - name: Auto-Publish Latest GitHub Release on Main Push
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="latest"
+          TITLE="Nepal Patro Live Build #${{ github.run_number }}"
+          NOTES="Automated Nepal Patro APK & live version manifest from commit ${GITHUB_SHA::7}."
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "$TITLE" --notes "$NOTES"
+            gh release upload "$TAG" apk-output/Nepal-Patro-debug.apk apk-output/version.json --clobber
+          else
+            gh release create "$TAG" apk-output/Nepal-Patro-debug.apk apk-output/version.json --title "$TITLE" --notes "$NOTES" --latest
+          fi

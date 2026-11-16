@@ -1,7 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { X } from 'lucide-react';
-import { BS_MONTHS_EN, BS_MONTHS_NE } from '../data/bsCalendarData';
+import {
+  BS_END_YEAR,
+  BS_MONTHS_EN,
+  BS_MONTHS_NE,
+  BS_START_YEAR,
+} from '../data/bsCalendarData';
 import { UserNote } from '../types/app';
 import { bsToKey, formatBsDateNe, getDaysInBsMonth } from '../utils/nepaliDate';
 
@@ -106,7 +111,10 @@ export function NoteModal({ isOpen, initialBsDate, onClose, onSave }: NoteModalP
                 onChange={(e) => setYear(Number(e.target.value))}
                 className="w-full h-11 px-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-soft)] text-sm font-medium text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-link)]"
               >
-                {[2080, 2081, 2082, 2083, 2084, 2085, 2086].map((y) => (
+                {Array.from(
+                  { length: BS_END_YEAR - BS_START_YEAR + 1 },
+                  (_, i) => BS_START_YEAR + i
+                ).map((y) => (
                   <option key={y} value={y}>
                     {y}
                   </option>

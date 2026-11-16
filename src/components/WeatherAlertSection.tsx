@@ -36,9 +36,14 @@ const PRESET_OPTIONS: Array<{ id: WeatherConditionPreset; label: string }> = [
   { id: 'coldwave', label: '<10°C Cold' },
 ];
 
-export function WeatherAlertSection() {
+interface WeatherAlertSectionProps {
+  weatherState?: ReturnType<typeof useNepalWeather>;
+}
+
+export function WeatherAlertSection({ weatherState }: WeatherAlertSectionProps) {
+  const localWeatherState = useNepalWeather();
   const { cityId, cities, preset, weather, selectCity, selectPreset, refreshWeather } =
-    useNepalWeather();
+    weatherState ?? localWeatherState;
 
   const WeatherIcon = getConditionIcon(weather.weatherCode);
   const { alerts } = weather;

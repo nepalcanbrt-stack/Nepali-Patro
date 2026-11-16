@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'motion/react';
 import {
+  Bell,
   Check,
   Cloud,
   Lock,
@@ -13,6 +14,7 @@ import {
 import { useFirebase } from '../contexts/FirebaseContext';
 import { IconThemeId, THEME_PALETTES, ThemeId } from '../types/theme';
 import { PatroThemedIcon } from './NepaliIcons';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -21,11 +23,14 @@ interface SettingsModalProps {
   useDevanagariNums: boolean;
   preferredRashi: string;
   privateLockEnabled: boolean;
+  unreadAlertsCount: number;
+  hasLiveUpdate: boolean;
   onSelectTheme: (theme: ThemeId) => void;
   onSelectIconTheme: (iconTheme: IconThemeId) => void;
   onToggleDevanagariNums: () => void;
   onSelectRashi: (rashiId: string) => void;
   onTogglePrivateLock: (enabled: boolean) => void;
+  onOpenNotifications: () => void;
   onOpenLogin: () => void;
   onClose: () => void;
 }
@@ -52,11 +57,14 @@ export function SettingsModal({
   useDevanagariNums,
   preferredRashi,
   privateLockEnabled,
+  unreadAlertsCount,
+  hasLiveUpdate,
   onSelectTheme,
   onSelectIconTheme,
   onToggleDevanagariNums,
   onSelectRashi,
   onTogglePrivateLock,
+  onOpenNotifications,
   onOpenLogin,
   onClose,
 }: SettingsModalProps) {
@@ -362,6 +370,36 @@ export function SettingsModal({
                   >
                     {privateLockEnabled ? 'Locked' : 'Off'}
                   </button>
+                </div>
+                <div className="flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-[var(--bg-surface-soft)] border border-[var(--border-subtle)]">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Bell className="h-4 w-4 text-[var(--accent-secondary)] shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-[var(--text-primary)]">
+                        Notifications &amp; Live Updates
+                      </p>
+                      <p className="text-xs text-[var(--text-muted)]">
+                        {hasLiveUpdate
+                          ? 'New live update ready to reload'
+                          : unreadAlertsCount > 0
+                          ? `${unreadAlertsCount} active weather/festival alerts`
+                          : 'Weather, Ekadashi, notes & auto-update alerts'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <PWAInstallButton compact />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        onOpenNotifications();
+                      }}
+                      className="px-3.5 py-2 rounded-xl bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-xs font-bold text-white whitespace-nowrap cursor-pointer"
+                    >
+                      Manage
+                    </button>
+                  </div>
                 </div>
               </section>
             </div>

@@ -12,13 +12,19 @@ import { FestivalsScreen } from './components/FestivalsScreen';
 import { HomeScreen } from './components/HomeScreen';
 import { LoginScreen } from './components/LoginScreen';
 import { NoteModal } from './components/NoteModal';
+import { NotificationCenterModal } from './components/NotificationCenterModal';
+import { NotificationToast } from './components/NotificationToast';
+import { OfflineIndicator } from './components/OfflineIndicator';
 import { PanchangScreen } from './components/PanchangScreen';
 import { Patro3DSceneScreen } from './components/Patro3DSceneScreen';
 import { PatroAssistantScreen } from './components/PatroAssistantScreen';
 import { SettingsModal } from './components/SettingsModal';
 import { StickyDateBar } from './components/StickyDateBar';
 import { useFirebase } from './contexts/FirebaseContext';
+import { useLiveUpdates } from './hooks/useLiveUpdates';
 import { useNepalTime } from './hooks/useNepalTime';
+import { useNepalWeather } from './hooks/useNepalWeather';
+import { AppNotificationAlert, useNotificationAlerts } from './hooks/useNotificationAlerts';
 import { useUserEvents } from './hooks/useUserEvents';
 import { useUserPreferences } from './hooks/useUserPreferences';
 import { AppScreen } from './types/app';
@@ -26,6 +32,7 @@ import { AppScreen } from './types/app';
 export default function App() {
   const { authReady, isVerifiedIdentity } = useFirebase();
   const nepalTime = useNepalTime();
+  const weatherState = useNepalWeather();
   const { notes, isCloudSynced, addNote, deleteNote } = useUserEvents();
   const {
     preferredRashi,
@@ -36,6 +43,15 @@ export default function App() {
     setPrivateLockEnabled,
     updatePreferences,
   } = useUserPreferences();
+
+  const liveUpdates = useLiveUpdates();
+  const notificationAlerts = useNotificationAlerts({
+    nepalTime,
+    weather: weatherState.weather,
+    notes,
+    hasUpdateAvailable: liveUpdates.hasUpdateAvailable,
+    latestVersionInfo: liveUpdates.latestVersionInfo,
+  });
 
   const [activeScreen, setActiveScreen] = useState<AppScreen>('home');
   const [viewYear, setViewYear] = useState<number>(() => nepalTime.todayBs.year);
@@ -53,6 +69,7 @@ export default function App() {
     day: nepalTime.todayBs.day,
   });
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   const isLockedOut = Boolean(privateLockEnabled && authReady && !isVerifiedIdentity);
   const effectiveScreen: AppScreen = isLockedOut ? 'login' : activeScreen;
@@ -118,6 +135,24 @@ export default function App() {
     [isLockedOut, nepalTime.todayBs]
   );
 
+  const handleAlertAction = useCallback(
+    (alert: AppNotificationAlert) => {
+      notificationAlerts.markAsRead(alert.id);
+      notificationAlerts.dismissToast();
+      setNotificationsOpen(false);
+      if (alert.actionType === 'update') {
+        void liveUpdates.applyLiveUpdate();
+      } else if (alert.actionType === 'calendar') {
+        handleJumpToBsDate(alert.targetBs ?? nepalTime.todayBs);
+      } else if (alert.actionType === 'festivals') {
+        handleNavigate('festivals');
+      } else {
+        handleNavigate('home');
+      }
+    },
+    [notificationAlerts, liveUpdates, handleJumpToBsDate, handleNavigate, nepalTime.todayBs]
+  );
+
   return (
     <MotionConfig reducedMotion="user">
       <div className="min-h-screen bg-[var(--bg-canvas)] text-[var(--text-primary)] flex flex-col transition-colors duration-200">
@@ -126,8 +161,11 @@ export default function App() {
           nepalTime={nepalTime}
           activeScreen={effectiveScreen}
           iconTheme={iconTheme}
+          unreadAlertsCount={notificationAlerts.unreadCount}
+          hasLiveUpdate={liveUpdates.hasUpdateAvailable}
           onNavigate={handleNavigate}
           onOpenTodayInCalendar={handleOpenTodayInCalendar}
+          onOpenNotifications={() => setNotificationsOpen(true)}
           onOpenSettings={() => setSettingsOpen(true)}
           onOpenLogin={() => handleNavigate('login')}
         />
@@ -159,6 +197,7 @@ export default function App() {
               {effectiveScreen === 'home' && (
                 <HomeScreen
                   nepalTime={nepalTime}
+                  weatherState={weatherState}
                   notes={notes}
                   isCloudSynced={isCloudSynced}
                   preferredRashi={preferredRashi}
@@ -268,6 +307,8 @@ export default function App() {
           useDevanagariNums={useDevanagariNums}
           preferredRashi={preferredRashi}
           privateLockEnabled={privateLockEnabled}
+          unreadAlertsCount={notificationAlerts.unreadCount}
+          hasLiveUpdate={liveUpdates.hasUpdateAvailable}
           onSelectTheme={(t) => void updatePreferences({ theme: t })}
           onSelectIconTheme={(it) => void updatePreferences({ iconTheme: it })}
           onToggleDevanagariNums={() =>
@@ -275,9 +316,45 @@ export default function App() {
           }
           onSelectRashi={(r) => void updatePreferences({ preferredRashi: r })}
           onTogglePrivateLock={setPrivateLockEnabled}
+          onOpenNotifications={() => setNotificationsOpen(true)}
           onOpenLogin={() => handleNavigate('login')}
           onClose={() => setSettingsOpen(false)}
         />
+
+        {/* Notification Alert & Live Update Center Modal */}
+        <NotificationCenterModal
+          isOpen={notificationsOpen}
+          alerts={notificationAlerts.alerts}
+          unreadCount={notificationAlerts.unreadCount}
+          prefs={notificationAlerts.prefs}
+          permission={notificationAlerts.permission}
+          currentBuildId={liveUpdates.currentBuildId}
+          latestVersionInfo={liveUpdates.latestVersionInfo}
+          hasUpdateAvailable={liveUpdates.hasUpdateAvailable}
+          isCheckingUpdates={liveUpdates.isChecking}
+          isNativeCapacitor={liveUpdates.isNativeCapacitor}
+          streamStatus={liveUpdates.streamStatus}
+          onUpdatePref={notificationAlerts.updatePref}
+          onRequestPermission={notificationAlerts.requestPermission}
+          onSendTestNotification={notificationAlerts.sendTestNotification}
+          onCheckForUpdates={liveUpdates.checkForUpdates}
+          onApplyLiveUpdate={liveUpdates.applyLiveUpdate}
+          onAlertAction={handleAlertAction}
+          onMarkRead={notificationAlerts.markAsRead}
+          onMarkAllRead={notificationAlerts.markAllRead}
+          onDismissAlert={notificationAlerts.dismissAlert}
+          onClose={() => setNotificationsOpen(false)}
+        />
+
+        {/* Live Toast Notification Banner */}
+        <NotificationToast
+          alert={notificationAlerts.activeToast}
+          onAction={handleAlertAction}
+          onDismiss={notificationAlerts.dismissToast}
+        />
+
+        {/* Offline Connectivity Pill */}
+        <OfflineIndicator />
       </div>
     </MotionConfig>
   );

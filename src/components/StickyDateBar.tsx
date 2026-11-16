@@ -1,4 +1,4 @@
-import { ChevronRight, Settings } from 'lucide-react';
+import { Bell, ChevronRight, Settings } from 'lucide-react';
 import { useFirebase } from '../contexts/FirebaseContext';
 import { NepalTimeState } from '../hooks/useNepalTime';
 import { AppScreen } from '../types/app';
@@ -14,8 +14,11 @@ interface StickyDateBarProps {
   nepalTime: NepalTimeState;
   activeScreen: AppScreen;
   iconTheme: IconThemeId;
+  unreadAlertsCount: number;
+  hasLiveUpdate: boolean;
   onNavigate: (screen: AppScreen) => void;
   onOpenTodayInCalendar: () => void;
+  onOpenNotifications: () => void;
   onOpenSettings: () => void;
   onOpenLogin: () => void;
 }
@@ -34,8 +37,11 @@ export function StickyDateBar({
   nepalTime,
   activeScreen,
   iconTheme,
+  unreadAlertsCount,
+  hasLiveUpdate,
   onNavigate,
   onOpenTodayInCalendar,
+  onOpenNotifications,
   onOpenSettings,
   onOpenLogin,
 }: StickyDateBarProps) {
@@ -151,6 +157,30 @@ export function StickyDateBar({
             <span className="hidden md:inline text-xs font-semibold whitespace-nowrap">
               {isVerifiedIdentity ? 'Account' : 'Sign In'}
             </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onOpenNotifications}
+            aria-label={
+              unreadAlertsCount > 0
+                ? `Open notifications (${unreadAlertsCount} unread)`
+                : 'Open notifications and live updates'
+            }
+            title={hasLiveUpdate ? 'Live update & alerts available' : 'Alerts & Live Updates'}
+            style={{ boxShadow: 'var(--card-shadow)' }}
+            className="relative min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full bg-[var(--bg-nav)] backdrop-blur-md border border-[var(--border-subtle)] text-[var(--text-primary)] hover:border-[var(--border-accent)] hover:text-[var(--accent-link)] active:scale-[0.97] transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-link)]"
+          >
+            <Bell className="h-4.5 w-4.5" />
+            {(unreadAlertsCount > 0 || hasLiveUpdate) && (
+              <span
+                className={`absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-extrabold text-white flex items-center justify-center shadow-xs ${
+                  hasLiveUpdate ? 'bg-amber-600' : 'bg-[#BE123C]'
+                }`}
+              >
+                {unreadAlertsCount > 9 ? '9+' : unreadAlertsCount || '!'}
+              </span>
+            )}
           </button>
 
           <button

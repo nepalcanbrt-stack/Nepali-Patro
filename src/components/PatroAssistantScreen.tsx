@@ -6,6 +6,7 @@ import {
   Compass,
   ExternalLink,
   Globe,
+  Info,
   Loader2,
   MapPin,
   Mic,
@@ -112,6 +113,10 @@ export function PatroAssistantScreen({
   iconTheme,
   onAddNote,
 }: PatroAssistantScreenProps) {
+  const isNativeCapacitor = Boolean(
+    typeof window !== 'undefined' &&
+      (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.()
+  );
   const [activeTab, setActiveTab] = useState<StudioTab>('voice');
 
   const { todayBs, todayAd, panchang, hours, minutes } = nepalTime;
@@ -264,6 +269,16 @@ export function PatroAssistantScreen({
 
   const startVoiceSession = async () => {
     if (voiceStatus === 'connecting' || voiceStatus === 'live') return;
+    if (isNativeCapacitor) {
+      setVoiceError('Live Voice requires the hosted web server connection and is not available inside the offline APK.');
+      setVoiceStatus('error');
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setVoiceError('Microphone capture is not supported in this browser or context (HTTPS is required).');
+      setVoiceStatus('error');
+      return;
+    }
     setVoiceError(null);
     setVoiceStatus('connecting');
 
@@ -385,6 +400,10 @@ export function PatroAssistantScreen({
     const q = (customPrompt ?? searchQuery).trim();
     if (!q || searchBusy) return;
     if (customPrompt) setSearchQuery(customPrompt);
+    if (isNativeCapacitor) {
+      setSearchError('Live Search requires the hosted web server connection and is not available inside the offline APK.');
+      return;
+    }
     setSearchBusy(true);
     setSearchError(null);
     try {
@@ -393,6 +412,10 @@ export function PatroAssistantScreen({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: q, patroContext }),
       });
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        throw new Error('Live Search server is unreachable right now. Please try again online.');
+      }
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || 'Search request failed.');
@@ -469,6 +492,10 @@ export function PatroAssistantScreen({
     const q = (customPrompt ?? mapsQuery).trim();
     if (!q || mapsBusy) return;
     if (customPrompt) setMapsQuery(customPrompt);
+    if (isNativeCapacitor) {
+      setMapsError('Temple Maps discovery requires the hosted web server connection and is not available inside the offline APK.');
+      return;
+    }
     setMapsBusy(true);
     setMapsError(null);
     try {
@@ -481,6 +508,10 @@ export function PatroAssistantScreen({
           longitude: coords.lng,
         }),
       });
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        throw new Error('Temple Maps server is unreachable right now. Please try again online.');
+      }
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || 'Maps discovery failed.');
@@ -569,6 +600,15 @@ export function PatroAssistantScreen({
             <span>Temples Map</span>
           </button>
         </div>
+
+        {isNativeCapacitor && (
+          <div className="mt-4 p-3 rounded-2xl bg-black/30 border border-white/20 text-xs text-white/90 flex items-start gap-2.5">
+            <Info className="h-4 w-4 text-[#FCD34D] shrink-0 mt-0.5" />
+            <span>
+              You are running the offline Android APK build. Calendar, Panchang, Subha Saait, Rashifal, Converter, Weather, and Alerts work 100% offline; Live Voice, Search &amp; Maps require the hosted web app.
+            </span>
+          </div>
+        )}
       </motion.section>
 
       {/* TAB 1: REAL-TIME VOICE CONVERSATION (gemini-3.8-live) */}
