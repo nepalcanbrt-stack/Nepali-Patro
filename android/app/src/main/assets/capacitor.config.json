@@ -1,0 +1,12 @@
+{
+	"appId": "com.nepalpatro.app",
+	"appName": "Nepal Patro",
+	"webDir": "dist",
+	"server": {
+		"androidScheme": "https"
+	},
+	"android": {
+		"allowMixedContent": false,
+		"backgroundColor": "#FAF8FC"
+	}
+}

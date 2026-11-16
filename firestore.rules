@@ -1,0 +1,155 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global safety net: deny all reads and writes by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isEmailVerified() && request.auth.uid == userId;
+    }
+
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll(['uid', 'displayName', 'email', 'photoURL', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'email', 'photoURL', 'createdAt', 'updatedAt'])
+        && data.uid is string
+        && data.uid == userId
+        && data.uid == request.auth.uid
+        && data.uid.size() >= 1
+        && data.uid.size() <= 128
+        && data.displayName is string
+        && data.displayName.size() >= 1
+        && data.displayName.size() <= 100
+        && data.email is string
+        && data.email.size() >= 3
+        && data.email.size() <= 254
+        && data.photoURL is string
+        && data.photoURL.size() <= 512
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidUserNote(data, userId) {
+      return data.keys().hasAll(['ownerUid', 'bsKey', 'title', 'note', 'time', 'category', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['ownerUid', 'bsKey', 'title', 'note', 'time', 'category', 'createdAt', 'updatedAt'])
+        && data.ownerUid is string
+        && data.ownerUid == userId
+        && data.ownerUid == request.auth.uid
+        && data.ownerUid.size() >= 1
+        && data.ownerUid.size() <= 128
+        && data.bsKey is string
+        && data.bsKey.size() == 10
+        && data.bsKey.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && data.title is string
+        && data.title.size() >= 1
+        && data.title.size() <= 120
+        && data.note is string
+        && data.note.size() <= 1000
+        && data.time is string
+        && data.time.size() <= 32
+        && data.category is string
+        && data.category.size() >= 1
+        && data.category.size() <= 20
+        && data.category in ['personal', 'puja', 'birthday', 'reminder']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidUserPreferences(data, userId) {
+      return data.keys().hasAll(['ownerUid', 'preferredRashi', 'useDevanagariNums', 'theme', 'updatedAt'])
+        && data.keys().hasOnly(['ownerUid', 'preferredRashi', 'useDevanagariNums', 'theme', 'updatedAt'])
+        && data.ownerUid is string
+        && data.ownerUid == userId
+        && data.ownerUid == request.auth.uid
+        && data.ownerUid.size() >= 1
+        && data.ownerUid.size() <= 128
+        && data.preferredRashi is string
+        && data.preferredRashi.size() >= 1
+        && data.preferredRashi.size() <= 24
+        && data.useDevanagariNums is bool
+        && data.theme is string
+        && data.theme.size() >= 1
+        && data.theme.size() <= 32
+        && data.theme in ['lavender-dawn', 'himalayan-sunrise', 'ancient-parchment', 'deep-temple-purple']
+        && data.updatedAt is timestamp;
+    }
+
+    // Isolated PII user profile
+    match /users/{userId}/profile/info {
+      allow get: if isValidId(userId) && isOwner(userId);
+      allow create: if isValidId(userId)
+        && isOwner(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(userId)
+        && isOwner(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'email', 'photoURL', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    // Personal Bikram Sambat calendar notes
+    match /users/{userId}/notes/{noteId} {
+      allow get: if isValidId(userId) && isValidId(noteId) && isOwner(userId) && existing().ownerUid == request.auth.uid;
+      allow list: if isOwner(userId) && resource.data.ownerUid == request.auth.uid;
+      allow create: if isValidId(userId)
+        && isValidId(noteId)
+        && isOwner(userId)
+        && isValidUserNote(incoming(), userId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(userId)
+        && isValidId(noteId)
+        && isOwner(userId)
+        && existing().ownerUid == request.auth.uid
+        && isValidUserNote(incoming(), userId)
+        && incoming().ownerUid == existing().ownerUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['bsKey', 'title', 'note', 'time', 'category', 'updatedAt']);
+      allow delete: if isValidId(userId) && isValidId(noteId) && isOwner(userId) && existing().ownerUid == request.auth.uid;
+    }
+
+    // Synced user preferences
+    match /users/{userId}/preferences/settings {
+      allow get: if isValidId(userId) && isOwner(userId);
+      allow create: if isValidId(userId)
+        && isOwner(userId)
+        && isValidUserPreferences(incoming(), userId)
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(userId)
+        && isOwner(userId)
+        && isValidUserPreferences(incoming(), userId)
+        && incoming().ownerUid == existing().ownerUid
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['preferredRashi', 'useDevanagariNums', 'theme', 'updatedAt']);
+      allow delete: if isValidId(userId) && isOwner(userId);
+    }
+  }
+}

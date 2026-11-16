@@ -1,0 +1,151 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Authenticated user profile stored privately under their user document.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID of the user",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User display name",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "User email address",
+          "minLength": 3,
+          "maxLength": 254
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "Optional profile photo URL",
+          "maxLength": 512
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update"
+        }
+      },
+      "required": ["uid", "displayName", "email", "createdAt", "updatedAt"]
+    },
+    "UserNote": {
+      "title": "User Note",
+      "description": "Personal calendar note or reminder tied to a Bikram Sambat date.",
+      "type": "object",
+      "properties": {
+        "ownerUid": {
+          "type": "string",
+          "description": "Firebase Auth UID of the note owner",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "bsKey": {
+          "type": "string",
+          "description": "Bikram Sambat date key in YYYY-MM-DD format",
+          "minLength": 10,
+          "maxLength": 10,
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the personal event or reminder",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "note": {
+          "type": "string",
+          "description": "Optional descriptive details",
+          "maxLength": 1000
+        },
+        "time": {
+          "type": "string",
+          "description": "Optional event time string",
+          "maxLength": 32
+        },
+        "category": {
+          "type": "string",
+          "description": "Note category",
+          "enum": ["personal", "puja", "birthday", "reminder"],
+          "maxLength": 20
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update"
+        }
+      },
+      "required": ["ownerUid", "bsKey", "title", "note", "time", "category", "createdAt", "updatedAt"]
+    },
+    "UserPreferences": {
+      "title": "User Preferences",
+      "description": "User calendar display and Rashi preferences.",
+      "type": "object",
+      "properties": {
+        "ownerUid": {
+          "type": "string",
+          "description": "Firebase Auth UID of the owner",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "preferredRashi": {
+          "type": "string",
+          "description": "Preferred Nepali Rashi identifier",
+          "minLength": 1,
+          "maxLength": 24
+        },
+        "useDevanagariNums": {
+          "type": "boolean",
+          "description": "Whether calendar grid uses Devanagari digits"
+        },
+        "theme": {
+          "type": "string",
+          "description": "Selected visual color palette theme",
+          "enum": ["lavender-dawn", "himalayan-sunrise", "ancient-parchment", "deep-temple-purple"],
+          "maxLength": 32
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update"
+        }
+      },
+      "required": ["ownerUid", "preferredRashi", "useDevanagariNums", "theme", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/profile/info": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Private user PII profile isolated from public reads."
+    },
+    "/users/{userId}/notes/{noteId}": {
+      "schema": { "$ref": "#/entities/UserNote" },
+      "description": "Personal Bikram Sambat calendar notes owned exclusively by the user."
+    },
+    "/users/{userId}/preferences/settings": {
+      "schema": { "$ref": "#/entities/UserPreferences" },
+      "description": "Synced calendar numeral and Rashi preferences for the user."
+    }
+  }
+}
