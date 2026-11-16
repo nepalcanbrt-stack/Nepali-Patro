@@ -82,46 +82,49 @@ define(['./workbox-7b16fee0'], (function (workbox) { 'use strict';
    */
   workbox.precacheAndRoute([{
     "url": "pwa-maskable-512x512.png",
-    "revision": "08587ce3dbbf20b246ded85e6e3ce58c"
+    "revision": "312f4d186bd6e98755305d87f53d8141"
   }, {
     "url": "pwa-512x512.png",
-    "revision": "07a4131c99abcc29e89f63484685e563"
+    "revision": "685dc458caa9035f5dcecf2c6f0c9784"
   }, {
     "url": "pwa-192x192.png",
-    "revision": "e84e2c9e27c8ab3e0795abcdb282976f"
+    "revision": "d8d88b64a7d7c0c10265dbe0f8a4e469"
   }, {
     "url": "index.html",
-    "revision": "2131b0d707147be423d84f0496f53c3a"
+    "revision": "2fcc10210f5c7e674e7d7f143a4a9a0e"
   }, {
     "url": "icon.svg",
     "revision": "4ac7b556dfc944c981b4b42b65a90783"
   }, {
+    "url": "favicon.png",
+    "revision": "4a936b540efefc4a91446de9cf850c1e"
+  }, {
     "url": "apple-touch-icon.png",
-    "revision": "b3df8efd9a67171b7a0d3af407706a8a"
+    "revision": "43a60f29c37e143cbf2e0075e23bd0a5"
   }, {
     "url": "assets/workbox-window.prod.es5-Bd17z0YL.js",
     "revision": null
   }, {
-    "url": "assets/index-BY7xoXoI.js",
+    "url": "assets/index-Dg_og2UQ.js",
     "revision": null
   }, {
-    "url": "assets/index-BIpQ2EIg.css",
+    "url": "assets/index-B65pEctw.css",
     "revision": null
   }, {
     "url": "apple-touch-icon.png",
-    "revision": "b3df8efd9a67171b7a0d3af407706a8a"
+    "revision": "43a60f29c37e143cbf2e0075e23bd0a5"
   }, {
-    "url": "icon.svg",
-    "revision": "4ac7b556dfc944c981b4b42b65a90783"
+    "url": "favicon.png",
+    "revision": "4a936b540efefc4a91446de9cf850c1e"
   }, {
     "url": "pwa-192x192.png",
-    "revision": "e84e2c9e27c8ab3e0795abcdb282976f"
+    "revision": "d8d88b64a7d7c0c10265dbe0f8a4e469"
   }, {
     "url": "pwa-512x512.png",
-    "revision": "07a4131c99abcc29e89f63484685e563"
+    "revision": "685dc458caa9035f5dcecf2c6f0c9784"
   }, {
     "url": "pwa-maskable-512x512.png",
-    "revision": "08587ce3dbbf20b246ded85e6e3ce58c"
+    "revision": "312f4d186bd6e98755305d87f53d8141"
   }, {
     "url": "manifest.webmanifest",
     "revision": "70fde8686d1cc54bc9eb0782ad7220e9"

@@ -17,7 +17,7 @@ import {
 import firebaseConfig from '../../firebase-applet-config.json';
 import { useFirebase } from '../contexts/FirebaseContext';
 import { IconThemeId } from '../types/theme';
-import { NepaliAccountLockIcon, PatroThemedIcon } from './NepaliIcons';
+import { PatroThemedIcon } from './NepaliIcons';
 
 interface LoginScreenProps {
   iconTheme: IconThemeId;
@@ -156,9 +156,12 @@ export function LoginScreen({
           className="px-6 py-6 text-white"
         >
           <div className="flex items-center gap-3.5">
-            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 border border-white/25 backdrop-blur-md">
-              <NepaliAccountLockIcon className="h-6 w-6 text-white" />
-            </span>
+            <img
+              src="./pwa-192x192.png"
+              alt="Nepal Patro icon"
+              referrerPolicy="no-referrer"
+              className="h-12 w-12 rounded-2xl object-cover shadow-md border border-[#FDE68A]/50 shrink-0"
+            />
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-wider text-white/80">
                 नेपाल पात्रो · Private Account

@@ -228,13 +228,21 @@ export function HomeScreen({
         <div className="relative z-10 px-5 py-6 sm:px-8 sm:py-8">
           {/* Top Brand Lockup inside Hero */}
           <div className="flex items-center justify-between gap-3 flex-wrap mb-6">
-            <div>
-              <p className="text-xs font-medium tracking-wide text-white/85 tabular-nums">
-                Nepal Standard Time · {timeFormatted}
-              </p>
-              <h1 className="font-devanagari text-2xl sm:text-3xl font-bold text-white tracking-tight mt-0.5">
-                नेपाल पात्रो <span className="font-display font-semibold text-[#FBCFE8]">· Nepal Patro</span>
-              </h1>
+            <div className="flex items-center gap-3.5">
+              <img
+                src="./pwa-192x192.png"
+                alt="Nepal Patro emblem"
+                referrerPolicy="no-referrer"
+                className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl object-cover shadow-md border border-[#FDE68A]/50 shrink-0"
+              />
+              <div>
+                <p className="text-xs font-medium tracking-wide text-white/85 tabular-nums">
+                  Nepal Standard Time · {timeFormatted}
+                </p>
+                <h1 className="font-devanagari text-2xl sm:text-3xl font-bold text-white tracking-tight mt-0.5">
+                  नेपाल पात्रो <span className="font-display font-semibold text-[#FBCFE8]">· Nepal Patro</span>
+                </h1>
+              </div>
             </div>
 
             <div className="flex items-center gap-2 shrink-0 flex-wrap">
