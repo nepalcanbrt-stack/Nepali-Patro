@@ -2,18 +2,26 @@ import { useCallback, useEffect, useState } from 'react';
 import { doc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore';
 import { useFirebase } from '../contexts/FirebaseContext';
 import { db, handleFirestoreError, OperationType } from '../firebase';
-import { isValidThemeId, THEME_PALETTES, ThemeId } from '../types/theme';
+import {
+  IconThemeId,
+  isValidIconThemeId,
+  isValidThemeId,
+  THEME_PALETTES,
+  ThemeId,
+} from '../types/theme';
 
 const PREFS_STORAGE_KEY = 'nepal_patro_prefs_v1';
+const PRIVATE_LOCK_STORAGE_KEY = 'nepal_patro_private_lock_v1';
 
 interface LocalPrefs {
   preferredRashi: string;
   useDevanagariNums: boolean;
   theme: ThemeId;
+  iconTheme: IconThemeId;
 }
 
 export function useUserPreferences() {
-  const { user, authReady } = useFirebase();
+  const { user, authReady, isVerifiedIdentity } = useFirebase();
   const [localPrefs, setLocalPrefs] = useState<LocalPrefs>(() => {
     try {
       const raw = localStorage.getItem(PREFS_STORAGE_KEY);
@@ -24,12 +32,26 @@ export function useUserPreferences() {
           useDevanagariNums:
             typeof parsed.useDevanagariNums === 'boolean' ? parsed.useDevanagariNums : true,
           theme: isValidThemeId(parsed.theme) ? parsed.theme : 'lavender-dawn',
+          iconTheme: isValidIconThemeId(parsed.iconTheme) ? parsed.iconTheme : 'nepali-cultural',
         };
       }
     } catch {
       // Ignore storage errors
     }
-    return { preferredRashi: 'mesha', useDevanagariNums: true, theme: 'lavender-dawn' };
+    return {
+      preferredRashi: 'mesha',
+      useDevanagariNums: true,
+      theme: 'lavender-dawn',
+      iconTheme: 'nepali-cultural',
+    };
+  });
+
+  const [privateLockEnabled, setPrivateLockEnabled] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(PRIVATE_LOCK_STORAGE_KEY) === 'true';
+    } catch {
+      return false;
+    }
   });
 
   const [cloudPrefs, setCloudPrefs] = useState<LocalPrefs | null>(null);
@@ -42,7 +64,15 @@ export function useUserPreferences() {
     }
   }, [localPrefs]);
 
-  const isCloud = Boolean(authReady && user && user.emailVerified);
+  useEffect(() => {
+    try {
+      localStorage.setItem(PRIVATE_LOCK_STORAGE_KEY, String(privateLockEnabled));
+    } catch {
+      // Ignore storage errors
+    }
+  }, [privateLockEnabled]);
+
+  const isCloud = Boolean(authReady && user && isVerifiedIdentity);
 
   useEffect(() => {
     if (!isCloud || !user) {
@@ -63,6 +93,7 @@ export function useUserPreferences() {
             useDevanagariNums:
               typeof data.useDevanagariNums === 'boolean' ? data.useDevanagariNums : true,
             theme: isValidThemeId(data.theme) ? data.theme : localPrefs.theme,
+            iconTheme: isValidIconThemeId(data.iconTheme) ? data.iconTheme : localPrefs.iconTheme,
           });
         }
       },
@@ -72,7 +103,7 @@ export function useUserPreferences() {
     );
 
     return unsub;
-  }, [isCloud, user, localPrefs.theme]);
+  }, [isCloud, user, localPrefs.theme, localPrefs.iconTheme]);
 
   const activePrefs = cloudPrefs ?? localPrefs;
 
@@ -94,6 +125,7 @@ export function useUserPreferences() {
         preferredRashi: (partial.preferredRashi ?? activePrefs.preferredRashi).slice(0, 24),
         useDevanagariNums: partial.useDevanagariNums ?? activePrefs.useDevanagariNums,
         theme: isValidThemeId(partial.theme) ? partial.theme : activePrefs.theme,
+        iconTheme: isValidIconThemeId(partial.iconTheme) ? partial.iconTheme : activePrefs.iconTheme,
       };
       setLocalPrefs(next);
       if (cloudPrefs) {
@@ -109,6 +141,7 @@ export function useUserPreferences() {
             preferredRashi: next.preferredRashi,
             useDevanagariNums: next.useDevanagariNums,
             theme: next.theme,
+            iconTheme: next.iconTheme,
             updatedAt: serverTimestamp(),
           });
         } catch (error) {
@@ -123,6 +156,9 @@ export function useUserPreferences() {
     preferredRashi: activePrefs.preferredRashi,
     useDevanagariNums: activePrefs.useDevanagariNums,
     theme: activePrefs.theme,
+    iconTheme: activePrefs.iconTheme,
+    privateLockEnabled,
+    setPrivateLockEnabled,
     updatePreferences,
   };
 }

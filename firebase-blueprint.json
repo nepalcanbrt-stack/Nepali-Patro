@@ -20,10 +20,13 @@
         },
         "email": {
           "type": "string",
-          "format": "email",
-          "description": "User email address",
-          "minLength": 3,
+          "description": "User Gmail or email address (empty for phone-only sign-in)",
           "maxLength": 254
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "Verified E.164 mobile number (empty for email/Google-only sign-in)",
+          "maxLength": 24
         },
         "photoURL": {
           "type": "string",
@@ -41,7 +44,7 @@
           "description": "Server timestamp of last update"
         }
       },
-      "required": ["uid", "displayName", "email", "createdAt", "updatedAt"]
+      "required": ["uid", "displayName", "email", "phoneNumber", "photoURL", "createdAt", "updatedAt"]
     },
     "UserNote": {
       "title": "User Note",
@@ -99,7 +102,7 @@
     },
     "UserPreferences": {
       "title": "User Preferences",
-      "description": "User calendar display and Rashi preferences.",
+      "description": "User calendar display, Nepali icon theme, color theme, and Rashi preferences.",
       "type": "object",
       "properties": {
         "ownerUid": {
@@ -122,8 +125,14 @@
         "theme": {
           "type": "string",
           "description": "Selected visual color palette theme",
-          "enum": ["lavender-dawn", "himalayan-sunrise", "ancient-parchment", "deep-temple-purple"],
+          "enum": ["lavender-dawn", "nepali-dhaka", "himalayan-sunrise", "ancient-parchment", "deep-temple-purple"],
           "maxLength": 32
+        },
+        "iconTheme": {
+          "type": "string",
+          "description": "Selected icon style theme",
+          "enum": ["nepali-cultural", "classic"],
+          "maxLength": 24
         },
         "updatedAt": {
           "type": "string",
@@ -131,7 +140,7 @@
           "description": "Server timestamp of last update"
         }
       },
-      "required": ["ownerUid", "preferredRashi", "useDevanagariNums", "theme", "updatedAt"]
+      "required": ["ownerUid", "preferredRashi", "useDevanagariNums", "theme", "iconTheme", "updatedAt"]
     }
   },
   "firestore": {
@@ -145,7 +154,7 @@
     },
     "/users/{userId}/preferences/settings": {
       "schema": { "$ref": "#/entities/UserPreferences" },
-      "description": "Synced calendar numeral and Rashi preferences for the user."
+      "description": "Synced calendar numeral, icon theme, color theme, and Rashi preferences for the user."
     }
   }
 }

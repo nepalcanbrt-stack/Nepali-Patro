@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import {
   ChevronLeft,
   ChevronRight,
   Clock,
-  Compass,
   Moon,
   ShieldAlert,
   Star,
@@ -12,6 +12,7 @@ import {
   Sunset,
 } from 'lucide-react';
 import { NepalTimeState } from '../hooks/useNepalTime';
+import { IconThemeId } from '../types/theme';
 import {
   addDaysToBs,
   BsDate,
@@ -23,11 +24,24 @@ import {
   getWeekdayNameNe,
   toDevanagari,
 } from '../utils/nepaliDate';
-import { calculatePanchang, getDailyRashifal } from '../utils/panchang';
+import {
+  calculatePanchang,
+  evaluateSubhaSaait,
+  getDailyRashifal,
+} from '../utils/panchang';
+import {
+  PATRO_EASE,
+  staggerCardVariants,
+  staggerContainerVariants,
+  staggerSubGridVariants,
+  staggerTileVariants,
+} from '../utils/motionVariants';
+import { PatroThemedIcon } from './NepaliIcons';
 
 interface PanchangScreenProps {
   nepalTime: NepalTimeState;
   preferredRashi: string;
+  iconTheme: IconThemeId;
   onSelectRashi: (rashiId: string) => void;
   onJumpToBsDate: (bs: { year: number; month: number; day: number }) => void;
 }
@@ -35,18 +49,30 @@ interface PanchangScreenProps {
 export function PanchangScreen({
   nepalTime,
   preferredRashi,
+  iconTheme,
   onSelectRashi,
   onJumpToBsDate,
 }: PanchangScreenProps) {
   const [activeBs, setActiveBs] = useState<BsDate>(nepalTime.todayBs);
 
+  const isToday =
+    activeBs.year === nepalTime.todayBs.year &&
+    activeBs.month === nepalTime.todayBs.month &&
+    activeBs.day === nepalTime.todayBs.day;
+
   const details = useMemo(() => {
     const ad = bsToAdParts(activeBs.year, activeBs.month, activeBs.day);
     const panchang = calculatePanchang(ad.year, ad.month, ad.day, ad.weekday);
     const rashifal = getDailyRashifal(ad.year, ad.month, ad.day);
-    const nepalSambat = getNepalSambatYear(activeBs.year, activeBs.month);
-    return { ad, panchang, rashifal, nepalSambat };
-  }, [activeBs]);
+    const nepalSambat = getNepalSambatYear(activeBs.year, activeBs.month, activeBs.day);
+    const subhaSaait = evaluateSubhaSaait(
+      activeBs,
+      panchang,
+      isToday ? nepalTime.hours : undefined,
+      isToday ? nepalTime.minutes : undefined
+    );
+    return { ad, panchang, rashifal, nepalSambat, subhaSaait };
+  }, [activeBs, isToday, nepalTime.hours, nepalTime.minutes]);
 
   const activeRashi =
     details.rashifal.find((r) => r.id === preferredRashi) ?? details.rashifal[0];
@@ -55,17 +81,18 @@ export function PanchangScreen({
     setActiveBs((prev) => addDaysToBs(prev, delta));
   };
 
-  const isToday =
-    activeBs.year === nepalTime.todayBs.year &&
-    activeBs.month === nepalTime.todayBs.month &&
-    activeBs.day === nepalTime.todayBs.day;
-
-  const { panchang, ad, nepalSambat } = details;
+  const { panchang, ad, nepalSambat, subhaSaait } = details;
 
   return (
-    <div className="space-y-6 pb-8">
+    <motion.div
+      variants={staggerContainerVariants}
+      initial="hidden"
+      animate="visible"
+      className="space-y-6 pb-8"
+    >
       {/* Date Navigation Header */}
-      <section
+      <motion.section
+        variants={staggerCardVariants}
         style={{ boxShadow: 'var(--card-shadow)' }}
         className="rounded-3xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] p-4 sm:p-6"
       >
@@ -118,16 +145,17 @@ export function PanchangScreen({
             </button>
           </div>
         </div>
-      </section>
+      </motion.section>
 
       {/* Main Panchang & Muhurat 2-Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* 5-Limb Panchang & Sun/Moon Card */}
-        <section
+        <motion.section
+          variants={staggerCardVariants}
           style={{ boxShadow: 'var(--card-shadow)' }}
           className="lg:col-span-7 rounded-3xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] p-5 sm:p-6 space-y-6"
         >
-          <div className="flex items-center justify-between gap-4 pb-4 border-b border-[var(--border-soft)]">
+          <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-[var(--border-soft)]">
             <div className="flex items-center gap-3">
               <span
                 style={{
@@ -136,7 +164,7 @@ export function PanchangScreen({
                 }}
                 className="flex h-11 w-11 items-center justify-center rounded-2xl text-[var(--accent-secondary)] border border-[var(--border-accent)]"
               >
-                <Compass className="h-5 w-5" />
+                <PatroThemedIcon name="panchang" iconTheme={iconTheme} className="h-5 w-5" />
               </span>
               <div>
                 <h2 className="text-lg font-bold text-[var(--text-primary)]">Panchang Ephemeris · पञ्चाङ्ग</h2>
@@ -145,77 +173,126 @@ export function PanchangScreen({
                 </p>
               </div>
             </div>
+
+            <span
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border whitespace-nowrap ${
+                subhaSaait.inRahuKaal
+                  ? 'bg-[#FFFBEB] text-[#92400E] border-[#F59E0B]/50 dark:bg-amber-950/60 dark:text-amber-200 dark:border-amber-500/40'
+                  : 'bg-[#ECFDF5] text-[#065F46] border-[#A7F3D0] dark:bg-emerald-950/60 dark:text-emerald-200 dark:border-emerald-700/60'
+              }`}
+            >
+              {subhaSaait.inRahuKaal ? (
+                <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
+              ) : (
+                <PatroThemedIcon name="kalash" iconTheme={iconTheme} className="h-3.5 w-3.5 shrink-0" />
+              )}
+              <span>{subhaSaait.badgeTextEn}</span>
+              <span className="font-devanagari">· {subhaSaait.badgeTextNe}</span>
+            </span>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            <div className="p-3.5 rounded-2xl bg-[var(--bg-surface-soft)] border border-[var(--border-soft)]">
+          <motion.div
+            variants={staggerSubGridVariants}
+            className="grid grid-cols-2 sm:grid-cols-3 gap-4"
+          >
+            <motion.div
+              variants={staggerTileVariants}
+              className="p-3.5 rounded-2xl bg-[var(--bg-surface-soft)] border border-[var(--border-soft)]"
+            >
               <span className="text-[11px] font-medium text-[var(--text-muted)]">Tithi · तिथि</span>
               <p className="font-devanagari text-base font-bold text-[var(--text-primary)] mt-1">
                 {panchang.fullTithiNe}
               </p>
               <p className="text-xs text-[var(--text-secondary)]">{panchang.tithiEn}</p>
-            </div>
+            </motion.div>
 
-            <div className="p-3.5 rounded-2xl bg-[var(--bg-surface-soft)] border border-[var(--border-soft)]">
+            <motion.div
+              variants={staggerTileVariants}
+              className="p-3.5 rounded-2xl bg-[var(--bg-surface-soft)] border border-[var(--border-soft)]"
+            >
               <span className="text-[11px] font-medium text-[var(--text-muted)]">Paksha · पक्ष</span>
               <p className="font-devanagari text-base font-bold text-[var(--text-primary)] mt-1">
                 {panchang.pakshaNe}
               </p>
               <p className="text-xs text-[var(--text-secondary)]">{panchang.pakshaEn}</p>
-            </div>
+            </motion.div>
 
-            <div className="p-3.5 rounded-2xl bg-[var(--bg-surface-soft)] border border-[var(--border-soft)]">
+            <motion.div
+              variants={staggerTileVariants}
+              className="p-3.5 rounded-2xl bg-[var(--bg-surface-soft)] border border-[var(--border-soft)]"
+            >
               <span className="text-[11px] font-medium text-[var(--text-muted)]">Nakshatra · नक्षत्र</span>
               <p className="font-devanagari text-base font-bold text-[var(--text-primary)] mt-1">
                 {panchang.nakshatraNe}
               </p>
               <p className="text-xs text-[var(--text-secondary)]">{panchang.nakshatraEn}</p>
-            </div>
+            </motion.div>
 
-            <div className="p-3.5 rounded-2xl bg-[var(--bg-surface-soft)] border border-[var(--border-soft)]">
+            <motion.div
+              variants={staggerTileVariants}
+              className="p-3.5 rounded-2xl bg-[var(--bg-surface-soft)] border border-[var(--border-soft)]"
+            >
               <span className="text-[11px] font-medium text-[var(--text-muted)]">Yoga · योग</span>
               <p className="font-devanagari text-base font-bold text-[var(--text-primary)] mt-1">
                 {panchang.yogaNe}
               </p>
               <p className="text-xs text-[var(--text-secondary)]">{panchang.yogaEn}</p>
-            </div>
+            </motion.div>
 
-            <div className="p-3.5 rounded-2xl bg-[var(--bg-surface-soft)] border border-[var(--border-soft)]">
+            <motion.div
+              variants={staggerTileVariants}
+              className="p-3.5 rounded-2xl bg-[var(--bg-surface-soft)] border border-[var(--border-soft)]"
+            >
               <span className="text-[11px] font-medium text-[var(--text-muted)]">Karana · करण</span>
               <p className="font-devanagari text-base font-bold text-[var(--text-primary)] mt-1">
                 {panchang.karanaNe}
               </p>
               <p className="text-xs text-[var(--text-secondary)]">{panchang.karanaEn}</p>
-            </div>
+            </motion.div>
 
-            <div className="p-3.5 rounded-2xl bg-[var(--bg-surface-soft)] border border-[var(--border-soft)]">
+            <motion.div
+              variants={staggerTileVariants}
+              className="p-3.5 rounded-2xl bg-[var(--bg-surface-soft)] border border-[var(--border-soft)]"
+            >
               <span className="text-[11px] font-medium text-[var(--text-muted)]">Moon Sign · चन्द्र राशि</span>
               <p className="font-devanagari text-base font-bold text-[var(--text-primary)] mt-1">
                 {panchang.chandraRashiNe}
               </p>
               <p className="text-xs text-[var(--text-secondary)]">{panchang.chandraRashiEn}</p>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
 
           {/* Sunrise / Sunset & Lunar Illumination */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-            <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-[#FFFBEB] border border-[#FDE68A] dark:bg-amber-950/40 dark:border-amber-800/60">
+          <motion.div
+            variants={staggerSubGridVariants}
+            className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2"
+          >
+            <motion.div
+              variants={staggerTileVariants}
+              className="flex items-center gap-3 p-3.5 rounded-2xl bg-[#FFFBEB] border border-[#FDE68A] dark:bg-amber-950/40 dark:border-amber-800/60"
+            >
               <Sunrise className="h-5 w-5 text-[#B45309] dark:text-amber-400 shrink-0" />
               <div>
                 <p className="text-[11px] font-medium text-[#92400E] dark:text-amber-300">Sunrise · सूर्योदय</p>
                 <p className="text-sm font-bold text-[var(--text-primary)] tabular-nums">{panchang.sunrise}</p>
               </div>
-            </div>
+            </motion.div>
 
-            <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-[var(--holiday-soft-bg)] border border-[var(--holiday-border)]">
+            <motion.div
+              variants={staggerTileVariants}
+              className="flex items-center gap-3 p-3.5 rounded-2xl bg-[var(--holiday-soft-bg)] border border-[var(--holiday-border)]"
+            >
               <Sunset className="h-5 w-5 text-[var(--holiday-soft-text)] shrink-0" />
               <div>
                 <p className="text-[11px] font-medium text-[var(--holiday-soft-text)]">Sunset · सूर्यास्त</p>
                 <p className="text-sm font-bold text-[var(--text-primary)] tabular-nums">{panchang.sunset}</p>
               </div>
-            </div>
+            </motion.div>
 
-            <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-[var(--accent-soft-bg)] border border-[var(--border-accent)]">
+            <motion.div
+              variants={staggerTileVariants}
+              className="flex items-center gap-3 p-3.5 rounded-2xl bg-[var(--accent-soft-bg)] border border-[var(--border-accent)]"
+            >
               <Moon className="h-5 w-5 text-[var(--accent-soft-text)] shrink-0" />
               <div>
                 <p className="text-[11px] font-medium text-[var(--accent-soft-text)]">Lunar Phase</p>
@@ -223,12 +300,13 @@ export function PanchangScreen({
                   {panchang.moonIllumination}% · {panchang.moonPhaseLabel.split(' ')[0]}
                 </p>
               </div>
-            </div>
-          </div>
-        </section>
+            </motion.div>
+          </motion.div>
+        </motion.section>
 
         {/* Muhurat & Timings Card */}
-        <section
+        <motion.section
+          variants={staggerCardVariants}
           style={{ boxShadow: 'var(--card-shadow)' }}
           className="lg:col-span-5 rounded-3xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] p-5 sm:p-6 space-y-4"
         >
@@ -242,20 +320,42 @@ export function PanchangScreen({
             </div>
           </div>
 
-          <div className="space-y-3">
-            <div className="p-4 rounded-2xl bg-[#ECFDF5] border border-[#A7F3D0] dark:bg-emerald-950/40 dark:border-emerald-800/60 flex items-center justify-between gap-3">
+          <motion.div variants={staggerSubGridVariants} className="space-y-3">
+            <motion.div
+              variants={staggerTileVariants}
+              className="p-4 rounded-2xl bg-[#ECFDF5] border border-[#A7F3D0] dark:bg-emerald-950/45 dark:border-emerald-800/60 flex items-center justify-between gap-3"
+            >
               <div>
                 <p className="text-xs font-bold text-[#065F46] dark:text-emerald-300 flex items-center gap-1.5">
-                  <Sun className="h-3.5 w-3.5" /> Abhijit Muhurat (Auspicious)
+                  <PatroThemedIcon name="kalash" iconTheme={iconTheme} className="h-3.5 w-3.5" />
+                  Subha Saait · शुभ साइत ({subhaSaait.badgeTextEn})
                 </p>
-                <p className="text-[11px] text-[#047857] dark:text-emerald-400 mt-0.5">Best window for starting important work</p>
+                <p className="text-[11px] text-[#047857] dark:text-emerald-400 mt-0.5">{subhaSaait.reason}</p>
               </div>
               <span className="text-sm font-bold text-[#065F46] dark:text-emerald-200 tabular-nums whitespace-nowrap">
+                {subhaSaait.windowEn}
+              </span>
+            </motion.div>
+
+            <motion.div
+              variants={staggerTileVariants}
+              className="p-4 rounded-2xl bg-[var(--bg-surface-soft)] border border-[var(--border-accent)] flex items-center justify-between gap-3"
+            >
+              <div>
+                <p className="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5">
+                  <Sun className="h-3.5 w-3.5 text-[#D97706]" /> Abhijit Muhurat (Auspicious)
+                </p>
+                <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">Best midday window for important work</p>
+              </div>
+              <span className="text-sm font-bold text-[var(--text-primary)] tabular-nums whitespace-nowrap">
                 {panchang.abhijitMuhurat}
               </span>
-            </div>
+            </motion.div>
 
-            <div className="p-4 rounded-2xl bg-[var(--holiday-soft-bg)] border border-[var(--holiday-border)] flex items-center justify-between gap-3">
+            <motion.div
+              variants={staggerTileVariants}
+              className="p-4 rounded-2xl bg-[var(--holiday-soft-bg)] border border-[var(--holiday-border)] flex items-center justify-between gap-3"
+            >
               <div>
                 <p className="text-xs font-bold text-[var(--holiday-soft-text)] flex items-center gap-1.5">
                   <ShieldAlert className="h-3.5 w-3.5" /> Rahu Kaal (Cautionary)
@@ -265,28 +365,38 @@ export function PanchangScreen({
               <span className="text-sm font-bold text-[var(--holiday-soft-text)] tabular-nums whitespace-nowrap">
                 {panchang.rahuKaal}
               </span>
-            </div>
+            </motion.div>
 
-            <div className="p-3.5 rounded-2xl bg-[var(--bg-surface-soft)] border border-[var(--border-soft)] flex items-center justify-between text-xs">
+            <motion.div
+              variants={staggerTileVariants}
+              className="p-3.5 rounded-2xl bg-[var(--bg-surface-soft)] border border-[var(--border-soft)] flex items-center justify-between text-xs"
+            >
               <span className="font-medium text-[var(--text-secondary)]">Yamaganda Kaal</span>
               <span className="font-bold text-[var(--text-primary)] tabular-nums">{panchang.yamaganda}</span>
-            </div>
+            </motion.div>
 
-            <div className="p-3.5 rounded-2xl bg-[var(--bg-surface-soft)] border border-[var(--border-soft)] flex items-center justify-between text-xs">
+            <motion.div
+              variants={staggerTileVariants}
+              className="p-3.5 rounded-2xl bg-[var(--bg-surface-soft)] border border-[var(--border-soft)] flex items-center justify-between text-xs"
+            >
               <span className="font-medium text-[var(--text-secondary)]">Gulika Kaal</span>
               <span className="font-bold text-[var(--text-primary)] tabular-nums">{panchang.gulikaKaal}</span>
-            </div>
+            </motion.div>
 
-            <div className="p-3.5 rounded-2xl bg-[var(--bg-surface-soft)] border border-[var(--border-soft)] flex items-center justify-between text-xs">
+            <motion.div
+              variants={staggerTileVariants}
+              className="p-3.5 rounded-2xl bg-[var(--bg-surface-soft)] border border-[var(--border-soft)] flex items-center justify-between text-xs"
+            >
               <span className="font-medium text-[var(--text-secondary)]">Solar Transit (सूर्य राशि)</span>
               <span className="font-devanagari font-bold text-[var(--text-primary)]">{panchang.suryaRashiNe}</span>
-            </div>
-          </div>
-        </section>
+            </motion.div>
+          </motion.div>
+        </motion.section>
       </div>
 
       {/* DAILY RASHIFAL (12 ZODIAC SIGNS) */}
-      <section
+      <motion.section
+        variants={staggerCardVariants}
         style={{ boxShadow: 'var(--card-shadow)' }}
         className="rounded-3xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] p-5 sm:p-6"
       >
@@ -304,13 +414,18 @@ export function PanchangScreen({
           </span>
         </div>
 
-        <div className="grid grid-cols-3 sm:grid-cols-6 lg:grid-cols-12 gap-2 pt-4">
+        <motion.div
+          variants={staggerSubGridVariants}
+          className="grid grid-cols-3 sm:grid-cols-6 lg:grid-cols-12 gap-2 pt-4"
+        >
           {details.rashifal.map((r) => {
             const isSelected = r.id === activeRashi.id;
             return (
-              <button
+              <motion.button
                 key={r.id}
                 type="button"
+                variants={staggerTileVariants}
+                whileTap={{ scale: 0.96 }}
                 onClick={() => onSelectRashi(r.id)}
                 style={
                   isSelected
@@ -320,7 +435,7 @@ export function PanchangScreen({
                       }
                     : undefined
                 }
-                className={`min-h-[68px] flex flex-col items-center justify-center p-2 rounded-2xl border transition-all cursor-pointer ${
+                className={`min-h-[68px] flex flex-col items-center justify-center p-2 rounded-2xl border transition-colors cursor-pointer ${
                   isSelected
                     ? 'border-[var(--accent-link)] shadow-xs'
                     : 'bg-[var(--bg-surface-soft)] border-[var(--border-soft)] hover:bg-[var(--bg-surface)] hover:border-[var(--border-accent)]'
@@ -328,53 +443,60 @@ export function PanchangScreen({
               >
                 <span className="text-lg leading-none mb-1">{r.symbol}</span>
                 <span className="font-devanagari text-xs font-bold text-[var(--text-primary)]">{r.nameNe}</span>
-              </button>
+              </motion.button>
             );
           })}
-        </div>
+        </motion.div>
 
         {/* Selected Rashi Forecast Card */}
-        <div
-          style={{
-            backgroundImage:
-              'linear-gradient(135deg, var(--card-highlight-from), var(--card-highlight-via), var(--card-highlight-to))',
-          }}
-          className="mt-5 p-5 rounded-2xl border border-[var(--border-accent)]"
-        >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
-            <div className="flex items-center gap-3">
-              <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--bg-surface)] text-2xl border border-[var(--border-accent)]">
-                {activeRashi.symbol}
-              </span>
-              <div>
-                <h3 className="font-devanagari text-lg font-bold text-[var(--text-primary)]">
-                  {activeRashi.nameNe} · <span className="font-display text-base">{activeRashi.nameEn}</span>
-                </h3>
-                <p className="text-xs text-[var(--text-muted)]">
-                  Element: {activeRashi.element} · Lucky Color: {activeRashi.luckyColor} · Lucky Number: {activeRashi.luckyNumber}
-                </p>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={`${activeRashi.id}-${activeBs.year}-${activeBs.month}-${activeBs.day}`}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.16, ease: PATRO_EASE }}
+            style={{
+              backgroundImage:
+                'linear-gradient(135deg, var(--card-highlight-from), var(--card-highlight-via), var(--card-highlight-to))',
+            }}
+            className="mt-5 p-5 rounded-2xl border border-[var(--border-accent)]"
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--bg-surface)] text-2xl border border-[var(--border-accent)]">
+                  {activeRashi.symbol}
+                </span>
+                <div>
+                  <h3 className="font-devanagari text-lg font-bold text-[var(--text-primary)]">
+                    {activeRashi.nameNe} · <span className="font-display text-base">{activeRashi.nameEn}</span>
+                  </h3>
+                  <p className="text-xs text-[var(--text-muted)]">
+                    Element: {activeRashi.element} · Lucky Color: {activeRashi.luckyColor} · Lucky Number: {activeRashi.luckyNumber}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1" aria-label={`Favorability ${activeRashi.rating} out of 5`}>
+                {Array.from({ length: 5 }, (_, idx) => (
+                  <Star
+                    key={idx}
+                    className={`h-4 w-4 ${
+                      idx < activeRashi.rating
+                        ? 'text-amber-500 fill-amber-400'
+                        : 'text-[var(--border-subtle)]'
+                    }`}
+                  />
+                ))}
               </div>
             </div>
 
-            <div className="flex items-center gap-1" aria-label={`Favorability ${activeRashi.rating} out of 5`}>
-              {Array.from({ length: 5 }, (_, idx) => (
-                <Star
-                  key={idx}
-                  className={`h-4 w-4 ${
-                    idx < activeRashi.rating
-                      ? 'text-amber-500 fill-amber-400'
-                      : 'text-[var(--border-subtle)]'
-                  }`}
-                />
-              ))}
-            </div>
-          </div>
-
-          <p className="text-sm text-[var(--text-primary)] leading-relaxed mt-2">
-            {activeRashi.prediction}
-          </p>
-        </div>
-      </section>
-    </div>
+            <p className="text-sm text-[var(--text-primary)] leading-relaxed mt-2">
+              {activeRashi.prediction}
+            </p>
+          </motion.div>
+        </AnimatePresence>
+      </motion.section>
+    </motion.div>
   );
 }

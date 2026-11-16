@@ -4,9 +4,9 @@
 @layer base {
   :root,
   [data-theme="lavender-dawn"] {
-    --font-display: 'Plus Jakarta Sans', 'Noto Sans Devanagari', system-ui, sans-serif;
-    --font-sans: 'DM Sans', 'Noto Sans Devanagari', system-ui, sans-serif;
-    --font-devanagari: 'Noto Sans Devanagari', 'Plus Jakarta Sans', system-ui, sans-serif;
+    --font-display: system-ui, -apple-system, 'Segoe UI', 'Noto Sans Devanagari', sans-serif;
+    --font-sans: system-ui, -apple-system, 'Segoe UI', 'Noto Sans Devanagari', sans-serif;
+    --font-devanagari: 'Noto Sans Devanagari', 'Kohinoor Devanagari', 'Mangal', system-ui, sans-serif;
 
     --bg-canvas: #FAF8FC;
     --bg-surface: #FFFFFF;
@@ -163,6 +163,45 @@
     --card-shadow: 0 8px 28px -8px rgba(0, 0, 0, 0.45);
   }
 
+  [data-theme="nepali-dhaka"] {
+    --bg-canvas: #FDF7F5;
+    --bg-surface: #FFFFFF;
+    --bg-surface-soft: #FDF0EC;
+    --bg-nav: rgba(255, 250, 248, 0.94);
+    --border-subtle: #F3D4CC;
+    --border-soft: #F9E5E0;
+    --border-accent: #E11D48;
+
+    --text-primary: #2B0B14;
+    --text-secondary: #683440;
+    --text-muted: #844C58;
+
+    --accent-primary: #9F1239;
+    --accent-primary-hover: #881337;
+    --accent-secondary: #B45309;
+    --accent-link: #BE123C;
+
+    --accent-soft-bg: #FFE4E6;
+    --accent-soft-text: #881337;
+    --holiday-soft-bg: #FEF3C7;
+    --holiday-soft-text: #92400E;
+    --holiday-border: #FCD34D;
+
+    --pill-bg: linear-gradient(90deg, rgba(255, 228, 230, 0.96), rgba(254, 243, 199, 0.96), rgba(255, 237, 213, 0.96));
+    --pill-border: #FDA4AF;
+    --pill-icon-bg: rgba(255, 255, 255, 0.92);
+    --pill-icon-border: #FCD34D;
+    --pill-sub: #881337;
+
+    --hero-from: #6B0F2B;
+    --hero-via: #9F1239;
+    --hero-to: #B45309;
+    --card-highlight-from: rgba(255, 228, 230, 0.85);
+    --card-highlight-via: rgba(254, 243, 199, 0.8);
+    --card-highlight-to: #FFFFFF;
+    --card-shadow: 0 4px 20px -6px rgba(159, 18, 57, 0.1);
+  }
+
   html {
     font-family: var(--font-sans);
     scroll-behavior: smooth;
@@ -172,7 +211,7 @@
   body {
     background-color: var(--bg-canvas);
     color: var(--text-primary);
-    overflow-x: hidden;
+    overflow-x: clip;
     transition: background-color 200ms ease, color 200ms ease;
   }
 

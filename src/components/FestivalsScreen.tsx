@@ -21,6 +21,7 @@ interface FestivalsScreenProps {
   onJumpToBsDate: (bs: { year: number; month: number; day: number }) => void;
   onOpenNoteModal: (bs?: { year: number; month: number; day: number }) => void;
   onDeleteNote: (id: string) => void;
+  onOpenLogin: () => void;
 }
 
 type CategoryTab = 'all' | 'holiday' | 'festival' | 'ekadashi' | 'notes';
@@ -32,8 +33,9 @@ export function FestivalsScreen({
   onJumpToBsDate,
   onOpenNoteModal,
   onDeleteNote,
+  onOpenLogin,
 }: FestivalsScreenProps) {
-  const { user, signInWithGoogle, authBusy } = useFirebase();
+  const { authBusy, isVerifiedIdentity } = useFirebase();
   const { todayBs } = nepalTime;
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState<CategoryTab>('all');
@@ -169,7 +171,7 @@ export function FestivalsScreen({
                 ['all', 'All'],
                 ['holiday', 'Public Holidays'],
                 ['festival', 'Festivals'],
-                ['ekadashi', 'Observances'],
+                ['ekadashi', 'Ekadashi & Vrat'],
                 ['notes', `My Notes (${notes.length})`],
               ] as const
             ).map(([val, label]) => (
@@ -202,15 +204,15 @@ export function FestivalsScreen({
                 </span>
               )}
             </h2>
-            {!user && (
+            {!isVerifiedIdentity && (
               <button
                 type="button"
-                onClick={signInWithGoogle}
+                onClick={onOpenLogin}
                 disabled={authBusy}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--bg-surface-soft)] hover:bg-[var(--accent-soft-bg)] text-xs font-semibold text-[var(--accent-link)] transition-colors cursor-pointer"
               >
                 <LogIn className="h-3.5 w-3.5" />
-                Sign in with Google to Sync
+                Sign in (Gmail / Phone) to Sync
               </button>
             )}
           </div>
@@ -266,74 +268,103 @@ export function FestivalsScreen({
       {/* Festivals Directory Grid */}
       {tab !== 'notes' && (
         <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filteredFestivals.map((fest) => (
-            <button
-              key={`${fest.id}-${fest.resolvedYear}`}
-              type="button"
-              onClick={() =>
-                onJumpToBsDate({
-                  year: fest.resolvedYear,
-                  month: fest.bsMonth,
-                  day: fest.bsDay,
-                })
-              }
-              style={{ boxShadow: 'var(--card-shadow)' }}
-              className="group text-left rounded-3xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--border-accent)] p-5 transition-all cursor-pointer flex items-start gap-4"
-            >
-              <div
-                className={`flex flex-col items-center justify-center w-14 h-14 rounded-2xl shrink-0 ${
-                  fest.isPublicHoliday
-                    ? 'bg-[var(--holiday-soft-bg)] text-[var(--holiday-soft-text)]'
-                    : 'bg-[var(--accent-soft-bg)] text-[var(--accent-soft-text)]'
+          {filteredFestivals.map((fest) => {
+            const isEkadashi = fest.category === 'ekadashi';
+            return (
+              <button
+                key={`${fest.id}-${fest.resolvedYear}`}
+                type="button"
+                onClick={() =>
+                  onJumpToBsDate({
+                    year: fest.resolvedYear,
+                    month: fest.bsMonth,
+                    day: fest.bsDay,
+                  })
+                }
+                style={{ boxShadow: 'var(--card-shadow)' }}
+                className={`group text-left rounded-3xl bg-[var(--bg-surface)] border p-5 transition-all cursor-pointer flex items-start gap-4 ${
+                  isEkadashi
+                    ? 'border-[#F59E0B]/45 hover:border-[#D97706]'
+                    : 'border-[var(--border-subtle)] hover:border-[var(--border-accent)]'
                 }`}
               >
-                <span className="font-devanagari text-xl font-extrabold leading-none">
-                  {toDevanagari(fest.bsDay)}
-                </span>
-                <span className="font-devanagari text-[11px] font-semibold mt-1">
-                  {BS_MONTHS_NE[fest.bsMonth - 1]}
-                </span>
-              </div>
+                <div
+                  className={`flex flex-col items-center justify-center w-14 h-14 rounded-2xl shrink-0 ${
+                    fest.isPublicHoliday
+                      ? 'bg-[var(--holiday-soft-bg)] text-[var(--holiday-soft-text)]'
+                      : isEkadashi
+                      ? 'bg-[#FEF3C7] text-[#92400E] border border-[#F59E0B]/40 dark:bg-amber-950/70 dark:text-amber-200 dark:border-amber-500/40'
+                      : 'bg-[var(--accent-soft-bg)] text-[var(--accent-soft-text)]'
+                  }`}
+                >
+                  <span className="font-devanagari text-xl font-extrabold leading-none tabular-nums">
+                    {toDevanagari(fest.bsDay)}
+                  </span>
+                  <span className="font-devanagari text-[11px] font-bold mt-1">
+                    {BS_MONTHS_NE[fest.bsMonth - 1]}
+                  </span>
+                </div>
 
-              <div className="min-w-0 flex-1">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <h3 className="font-devanagari text-base font-bold text-[var(--text-primary)] truncate">
-                      {fest.titleNe}
-                    </h3>
-                    <p className="text-xs font-semibold text-[var(--text-secondary)] truncate">
-                      {fest.titleEn}
-                    </p>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <h3
+                        className={`font-devanagari text-base truncate ${
+                          isEkadashi
+                            ? 'font-extrabold text-[#B45309] dark:text-amber-300'
+                            : 'font-bold text-[var(--text-primary)]'
+                        }`}
+                      >
+                        {fest.titleNe}
+                      </h3>
+                      <p
+                        className={`text-xs truncate ${
+                          isEkadashi
+                            ? 'font-bold text-[var(--text-primary)]'
+                            : 'font-semibold text-[var(--text-secondary)]'
+                        }`}
+                      >
+                        {fest.titleEn}
+                      </p>
+                    </div>
+
+                    <span className="text-xs font-bold text-[var(--pill-sub)] whitespace-nowrap shrink-0 tabular-nums">
+                      {fest.daysUntil === 0
+                        ? 'Today'
+                        : fest.daysUntil > 0
+                        ? `${fest.daysUntil}d left`
+                        : `${Math.abs(fest.daysUntil)}d ago`}
+                    </span>
                   </div>
 
-                  <span className="text-xs font-bold text-[var(--pill-sub)] whitespace-nowrap shrink-0">
-                    {fest.daysUntil === 0
-                      ? 'Today'
-                      : fest.daysUntil > 0
-                      ? `${fest.daysUntil}d left`
-                      : `${Math.abs(fest.daysUntil)}d ago`}
-                  </span>
-                </div>
+                  <p className="text-xs text-[var(--text-muted)] mt-2 line-clamp-2 leading-relaxed">
+                    {fest.description}
+                  </p>
 
-                <p className="text-xs text-[var(--text-muted)] mt-2 line-clamp-2 leading-relaxed">
-                  {fest.description}
-                </p>
-
-                <div className="mt-2.5 flex items-center gap-2 text-[11px] text-[var(--text-secondary)]">
-                  <CalendarDays className="h-3.5 w-3.5 text-[var(--accent-link)]" />
-                  <span>
-                    {BS_MONTHS_EN[fest.bsMonth - 1]} {fest.bsDay}, {fest.resolvedYear} BS · {fest.adFormatted}
-                  </span>
-                  {fest.isPublicHoliday && (
-                    <>
-                      <span aria-hidden="true">·</span>
-                      <span className="font-semibold text-[var(--accent-secondary)]">Public Holiday</span>
-                    </>
-                  )}
+                  <div className="mt-2.5 flex items-center gap-2 text-[11px] text-[var(--text-secondary)] flex-wrap">
+                    <CalendarDays className="h-3.5 w-3.5 text-[var(--accent-link)]" />
+                    <span>
+                      {BS_MONTHS_EN[fest.bsMonth - 1]} {fest.bsDay}, {fest.resolvedYear} BS · {fest.adFormatted}
+                    </span>
+                    {fest.isPublicHoliday && (
+                      <>
+                        <span aria-hidden="true">·</span>
+                        <span className="font-semibold text-[var(--accent-secondary)]">Public Holiday</span>
+                      </>
+                    )}
+                    {isEkadashi && (
+                      <>
+                        <span aria-hidden="true">·</span>
+                        <span className="font-extrabold text-[#B45309] dark:text-amber-300">
+                          एकादशी व्रत · Ekadashi
+                        </span>
+                      </>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </button>
-          ))}
+              </button>
+            );
+          })}
         </section>
       )}
     </div>

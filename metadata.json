@@ -1,6 +1,6 @@
 {
   "name": "नेपाल पात्रो · Nepal Patro",
   "description": "Premium Bikram Sambat Nepali calendar, daily Panchang, festival countdowns, and BS-AD date converter.",
-  "requestFramePermissions": [],
+  "requestFramePermissions": ["microphone", "geolocation"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

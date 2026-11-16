@@ -1,4 +1,5 @@
-import { toDevanagari } from './nepaliDate';
+import { NEPALI_FESTIVALS } from '../data/bsCalendarData';
+import { BsDate, toDevanagari } from './nepaliDate';
 
 export interface PanchangData {
   tithiNumber: number; // 1..30
@@ -24,10 +25,30 @@ export interface PanchangData {
   rahuKaal: string;
   yamaganda: string;
   gulikaKaal: string;
+  subhaSaait: string;
+  subhaSaaitNe: string;
+  subhaSaaitStartMin: number;
+  subhaSaaitEndMin: number;
+  rahuStartMin: number;
+  rahuEndMin: number;
+  isAuspiciousYoga: boolean;
   moonIllumination: number; // 0..100
   moonPhaseLabel: string;
   seasonNe: string;
   seasonEn: string;
+}
+
+export interface SubhaSaaitStatus {
+  windowEn: string;
+  windowNe: string;
+  isAuspicious: boolean;
+  isNowActive: boolean;
+  inRahuKaal: boolean;
+  badgeTextEn: string;
+  badgeTextNe: string;
+  reason: string;
+  festivalMatchNe?: string;
+  festivalMatchEn?: string;
 }
 
 export interface RashiForecast {
@@ -37,6 +58,10 @@ export interface RashiForecast {
   symbol: string;
   element: string;
   prediction: string;
+  predictionNe: string;
+  focusArea: string;
+  luckyTime: string;
+  luckyDirection: string;
   luckyColor: string;
   luckyNumber: number;
   rating: number; // 1..5
@@ -270,9 +295,25 @@ export function calculatePanchang(adYear: number, adMonth: number, adDay: number
   };
 
   const abhijitHalf = (sunsetMin - sunriseMin) / 30;
-  const abhijitMuhurat = `${formatMinutesAsTime(solarNoonMin - abhijitHalf)} – ${formatMinutesAsTime(
-    solarNoonMin + abhijitHalf
+  const abhijitStartMin = Math.round(solarNoonMin - abhijitHalf);
+  const abhijitEndMin = Math.round(solarNoonMin + abhijitHalf);
+  const abhijitMuhurat = `${formatMinutesAsTime(abhijitStartMin)} – ${formatMinutesAsTime(
+    abhijitEndMin
   )}`;
+
+  const rahuStartMin = Math.round(sunriseMin + (rahuSlot - 1) * partMin);
+  const rahuEndMin = Math.round(rahuStartMin + partMin);
+
+  // Morning Subha / Amrit Saait slot shifted safely outside Rahu Kaal
+  const morningSlot = rahuSlot === 2 ? 3 : 2;
+  const subhaSaaitStartMin = Math.round(sunriseMin + (morningSlot - 1) * partMin);
+  const subhaSaaitEndMin = Math.round(subhaSaaitStartMin + partMin);
+  const subhaSaait = `${formatMinutesAsTime(subhaSaaitStartMin)} – ${formatMinutesAsTime(subhaSaaitEndMin)}`;
+  const subhaSaaitNe = `${formatMinutesAsTime(subhaSaaitStartMin, true)} – ${formatMinutesAsTime(subhaSaaitEndMin, true)}`;
+
+  // Yoga indices considered classically Shubha / Siddha
+  const INAUSPICIOUS_YOGAS = new Set([0, 5, 8, 9, 12, 14, 16, 18, 26]);
+  const isAuspiciousYoga = !INAUSPICIOUS_YOGAS.has(yogaIdx);
 
   // Nepali Ritu (6 Seasons based on Surya Rashi / BS cycle)
   const seasonList: Array<[string, string]> = [
@@ -310,6 +351,13 @@ export function calculatePanchang(adYear: number, adMonth: number, adDay: number
     rahuKaal: formatRange(rahuSlot),
     yamaganda: formatRange(yamaSlot),
     gulikaKaal: formatRange(gulikaSlot),
+    subhaSaait,
+    subhaSaaitNe,
+    subhaSaaitStartMin,
+    subhaSaaitEndMin,
+    rahuStartMin,
+    rahuEndMin,
+    isAuspiciousYoga,
     moonIllumination,
     moonPhaseLabel,
     seasonNe,
@@ -317,19 +365,146 @@ export function calculatePanchang(adYear: number, adMonth: number, adDay: number
   };
 }
 
-const FORECAST_TEMPLATES = [
-  'Creative energy flows effortlessly today. Ideal for initiating collaborative discussions and completing pending family plans.',
-  'Financial prudence brings clarity. Take time in the afternoon to review budgets and connect with trusted mentors.',
-  'Warm moments with loved ones uplift your spirit. A short evening walk brings fresh perspective on a recent decision.',
-  'Focus and calm discipline yield tangible progress at work or study. Avoid rushing into unverified commitments.',
-  'Auspicious alignment supports travel, learning, and spiritual reflection. Express gratitude toward elders today.',
-  'Diplomatic communication resolves lingering misunderstandings. Evening hours favor rest, music, and home harmony.',
-  'New opportunities emerge through community ties. Stay adaptable and trust your steady preparation.',
-  'Inner balance strengthens resilience today. Prioritize healthy nourishment and clear boundaries around your schedule.',
-  'Optimism attracts helpful allies. Great day for writing, teaching, or organizing creative projects.',
-  'Patient persistence pays off in career matters. Dedicate time in the morning to your most meaningful goal.',
-  'Social invitations or meaningful conversations brighten the day. Share your insights with generosity.',
-  'Reflective calm helps you spot subtle opportunities others miss. Trust steady intuition over haste.',
+const AUSPICIOUS_TITHIS = new Set([2, 3, 5, 6, 7, 10, 11, 13, 15, 17, 18, 20, 22, 25, 26]);
+
+/**
+ * Evaluates today's Subha Saait (auspicious time window) and Auspicious badge,
+ * respecting the corrected Bikram Sambat festival & Ekadashi dates.
+ */
+export function evaluateSubhaSaait(
+  bsDate: Pick<BsDate, 'year' | 'month' | 'day'>,
+  panchang: PanchangData,
+  currentHours?: number,
+  currentMinutes?: number
+): SubhaSaaitStatus {
+  const matchedFestivals = NEPALI_FESTIVALS.filter(
+    (f) =>
+      f.bsMonth === bsDate.month &&
+      f.bsDay === bsDate.day &&
+      (f.bsYear === undefined || f.bsYear === bsDate.year)
+  );
+  const primaryFest = matchedFestivals[0];
+
+  const nowMin =
+    currentHours !== undefined && currentMinutes !== undefined
+      ? currentHours * 60 + currentMinutes
+      : -1;
+
+  const inRahuKaal =
+    nowMin >= 0 && nowMin >= panchang.rahuStartMin && nowMin <= panchang.rahuEndMin;
+  const inMorningSubha =
+    nowMin >= 0 && nowMin >= panchang.subhaSaaitStartMin && nowMin <= panchang.subhaSaaitEndMin;
+  const isNowActive = inMorningSubha && !inRahuKaal;
+
+  const hasAuspiciousTithi = AUSPICIOUS_TITHIS.has(panchang.tithiNumber);
+  const isAuspicious =
+    Boolean(primaryFest) || (panchang.isAuspiciousYoga && hasAuspiciousTithi && !inRahuKaal);
+
+  // Special festival-aware Subha Saait labels (respecting corrected Kartik 29 Chhath, Mangsir 5 Haribodhani, etc.)
+  if (primaryFest) {
+    return {
+      windowEn:
+        primaryFest.id === '2083-chhath-parva'
+          ? `Sunset Arghya · ${panchang.sunset}`
+          : primaryFest.category === 'ekadashi'
+          ? `Morning Vrat · ${panchang.subhaSaait}`
+          : panchang.abhijitMuhurat,
+      windowNe:
+        primaryFest.id === '2083-chhath-parva'
+          ? `सन्ध्या अर्घ्य · ${panchang.sunsetNe}`
+          : panchang.subhaSaaitNe,
+      isAuspicious: true,
+      isNowActive: isNowActive || primaryFest.category === 'ekadashi',
+      inRahuKaal,
+      badgeTextEn: primaryFest.category === 'ekadashi' ? 'Auspicious Vrat' : 'Auspicious',
+      badgeTextNe: 'शुभ साइत',
+      reason: `${primaryFest.titleEn} · ${panchang.yogaEn} Yoga`,
+      festivalMatchNe: primaryFest.titleNe,
+      festivalMatchEn: primaryFest.titleEn,
+    };
+  }
+
+  return {
+    windowEn: panchang.subhaSaait,
+    windowNe: panchang.subhaSaaitNe,
+    isAuspicious,
+    isNowActive,
+    inRahuKaal,
+    badgeTextEn: inRahuKaal
+      ? 'Caution (Rahu Kaal)'
+      : isNowActive
+      ? 'Auspicious Now'
+      : isAuspicious
+      ? 'Auspicious'
+      : 'Abhijit Saait',
+    badgeTextNe: inRahuKaal ? 'राहुकाल' : 'शुभ साइत',
+    reason: inRahuKaal
+      ? `Rahu Kaal active (${panchang.rahuKaal}) — wait for ${panchang.abhijitMuhurat}`
+      : `${panchang.yogaNe} (${panchang.yogaEn}) Yoga · ${panchang.nakshatraEn} Nakshatra`,
+  };
+}
+
+const FORECAST_TEMPLATES: Array<{ en: string; ne: string; focus: string }> = [
+  {
+    en: 'Creative energy flows effortlessly today. Ideal for initiating collaborative discussions and completing pending family plans.',
+    ne: 'आज सिर्जनात्मक ऊर्जा सहजै प्रवाहित हुनेछ। सहकार्यका छलफल सुरु गर्न र अधुरा पारिवारिक योजना पूरा गर्न शुभ दिन छ।',
+    focus: 'Work & Family',
+  },
+  {
+    en: 'Financial prudence brings clarity. Take time in the afternoon to review budgets and connect with trusted mentors.',
+    ne: 'आर्थिक सचेतनाले स्पष्टता ल्याउनेछ। दिउँसोको समयमा बजेट समीक्षा गर्न र अनुभवी मार्गदर्शकसँग सल्लाह लिन उत्तम छ।',
+    focus: 'Finance & Clarity',
+  },
+  {
+    en: 'Warm moments with loved ones uplift your spirit. A short evening walk brings fresh perspective on a recent decision.',
+    ne: 'आत्मीय व्यक्तिहरूसँगको मिठासपूर्ण समयले मन प्रसन्न रहनेछ। साँझको हल्का भ्रमणले महत्वपूर्ण निर्णयमा नयाँ दृष्टिकोण मिल्नेछ।',
+    focus: 'Relationships',
+  },
+  {
+    en: 'Focus and calm discipline yield tangible progress at work or study. Avoid rushing into unverified commitments.',
+    ne: 'शान्त अनुशासन र एकाग्रताले कार्यक्षेत्र वा अध्ययनमा ठोस प्रगति दिलाउनेछ। हतारमा अपरिचित प्रतिबद्धता नगर्नुहोस्।',
+    focus: 'Career & Study',
+  },
+  {
+    en: 'Auspicious alignment supports travel, learning, and spiritual reflection. Express gratitude toward elders today.',
+    ne: 'शुभ ग्रहयोगले यात्रा, ज्ञानार्जन र आध्यात्मिक चिन्तनमा साथ दिनेछ। आज मान्यजनप्रति कृतज्ञता व्यक्त गर्नु लाभदायक हुनेछ।',
+    focus: 'Travel & Dharma',
+  },
+  {
+    en: 'Diplomatic communication resolves lingering misunderstandings. Evening hours favor rest, music, and home harmony.',
+    ne: 'संयमित र मधुर संवादले पुराना असमझदारी हट्नेछन्। साँझको समय विश्राम, संगीत र घरको सुख-शान्तिका लागि अनुकूल छ।',
+    focus: 'Harmony',
+  },
+  {
+    en: 'New opportunities emerge through community ties. Stay adaptable and trust your steady preparation.',
+    ne: 'सामाजिक र व्यावसायिक सम्बन्धबाट नयाँ अवसर प्राप्त हुनेछ। परिस्थितिअनुसार लचिलो भई आफ्नो तयारीमा भरोसा राख्नुहोस्।',
+    focus: 'Growth & Network',
+  },
+  {
+    en: 'Inner balance strengthens resilience today. Prioritize healthy nourishment and clear boundaries around your schedule.',
+    ne: 'आज आन्तरिक सन्तुलनले आत्मबल बढाउनेछ। सन्तुलित खानपान र समय व्यवस्थापनलाई प्राथमिकता दिनुहोस्।',
+    focus: 'Health & Balance',
+  },
+  {
+    en: 'Optimism attracts helpful allies. Great day for writing, teaching, or organizing creative projects.',
+    ne: 'सकारात्मक सोचले सहयोगी मित्रहरू आकर्षित गर्नेछ। लेखन, शिक्षण वा सिर्जनात्मक परियोजना व्यवस्थित गर्न उत्कृष्ट दिन छ।',
+    focus: 'Creativity',
+  },
+  {
+    en: 'Patient persistence pays off in career matters. Dedicate time in the morning to your most meaningful goal.',
+    ne: 'धैर्य र निरन्तरताले पेशागत क्षेत्रमा सफलता मिल्नेछ। बिहानी समयमा सबैभन्दा महत्वपूर्ण लक्ष्यमा ध्यान केन्द्रित गर्नुहोस्।',
+    focus: 'Ambition',
+  },
+  {
+    en: 'Social invitations or meaningful conversations brighten the day. Share your insights with generosity.',
+    ne: 'सामाजिक निमन्त्रणा वा सार्थक संवादले दिन उज्यालो बनाउनेछ। आफ्ना अनुभव र विचार उदारतापूर्वक बाँड्नुहोस्।',
+    focus: 'Community',
+  },
+  {
+    en: 'Reflective calm helps you spot subtle opportunities others miss. Trust steady intuition over haste.',
+    ne: 'शान्त चिन्तनले अरूले नदेखेका सूक्ष्म अवसर पहिचान गर्न मद्दत गर्नेछ। हतारभन्दा अन्तर्ज्ञानमा विश्वास गर्नुहोस्।',
+    focus: 'Intuition',
+  },
 ];
 
 const LUCKY_COLORS = [
@@ -337,24 +512,56 @@ const LUCKY_COLORS = [
   'Warm Gold', 'Rosewood', 'Indigo', 'Ivory', 'Copper', 'Plum',
 ];
 
+const LUCKY_DIRECTIONS = ['East (पूर्व)', 'North-East (ईशान)', 'North (उत्तर)', 'South-East (आग्नेय)', 'West (पश्चिम)'];
+const LUCKY_TIMES = ['07:15 AM – 09:00 AM', '10:30 AM – 12:15 PM', '01:45 PM – 03:30 PM', '04:30 PM – 06:00 PM'];
+
 export function getDailyRashifal(adYear: number, adMonth: number, adDay: number): RashiForecast[] {
   const seed = adYear * 372 + adMonth * 31 + adDay;
   return RASHIS_NE.map((nameNe, idx) => {
     const hash = (seed + idx * 7) % FORECAST_TEMPLATES.length;
     const colorHash = (seed + idx * 3) % LUCKY_COLORS.length;
+    const dirHash = (seed + idx * 5) % LUCKY_DIRECTIONS.length;
+    const timeHash = (seed + idx * 9) % LUCKY_TIMES.length;
     const rating = 3 + ((seed + idx * 5) % 3);
     const luckyNumber = 1 + ((seed + idx * 11) % 9);
     const elements = ['Fire', 'Earth', 'Air', 'Water'];
+    const tpl = FORECAST_TEMPLATES[hash];
     return {
       id: RASHIS_EN[idx].split(' ')[0].toLowerCase(),
       nameNe,
       nameEn: RASHIS_EN[idx],
       symbol: RASHIS_SYMBOLS[idx],
       element: elements[idx % 4],
-      prediction: FORECAST_TEMPLATES[hash],
+      prediction: tpl.en,
+      predictionNe: tpl.ne,
+      focusArea: tpl.focus,
+      luckyTime: LUCKY_TIMES[timeHash],
+      luckyDirection: LUCKY_DIRECTIONS[dirHash],
       luckyColor: LUCKY_COLORS[colorHash],
       luckyNumber,
       rating,
     };
   });
+}
+
+export function getRashifalById(
+  rashiId: string,
+  adYear: number,
+  adMonth: number,
+  adDay: number
+): RashiForecast {
+  const list = getDailyRashifal(adYear, adMonth, adDay);
+  return list.find((r) => r.id === rashiId) ?? list[0];
+}
+
+/**
+ * Purely private offline Panchang-grounded Rashifal resolver (zero third-party APIs).
+ */
+export function resolvePrivateDailyRashifal(
+  rashiId: string,
+  adYear: number,
+  adMonth: number,
+  adDay: number
+): RashiForecast {
+  return getRashifalById(rashiId, adYear, adMonth, adDay);
 }

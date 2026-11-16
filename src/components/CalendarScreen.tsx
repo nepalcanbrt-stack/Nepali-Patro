@@ -384,7 +384,13 @@ export function CalendarScreen({
                   {/* Tithi / Festival Preview */}
                   <div className="mt-1 space-y-0.5 min-w-0">
                     {hasEvents ? (
-                      <p className="font-devanagari text-[9px] sm:text-[10px] font-semibold text-[var(--accent-secondary)] truncate">
+                      <p
+                        className={`font-devanagari text-[9px] sm:text-[10px] truncate ${
+                          cell.events.some((e) => e.category === 'ekadashi')
+                            ? 'font-extrabold text-[#B45309] dark:text-amber-300'
+                            : 'font-semibold text-[var(--accent-secondary)]'
+                        }`}
+                      >
                         {cell.events[0].titleNe}
                       </p>
                     ) : (
@@ -480,18 +486,39 @@ export function CalendarScreen({
             {selectedDetails.events.length > 0 && (
               <div className="py-4 border-b border-[var(--border-soft)] space-y-2">
                 <h3 className="text-xs font-semibold text-[var(--text-secondary)]">Observances & Holidays</h3>
-                {selectedDetails.events.map((ev) => (
-                  <div
-                    key={ev.id}
-                    className="p-3 rounded-2xl bg-[var(--holiday-soft-bg)] border border-[var(--holiday-border)]"
-                  >
-                    <p className="font-devanagari text-sm font-bold text-[var(--holiday-soft-text)]">
-                      {ev.titleNe}
-                    </p>
-                    <p className="text-xs font-medium text-[var(--text-primary)]">{ev.titleEn}</p>
-                    <p className="text-xs text-[var(--text-secondary)] mt-1 leading-relaxed">{ev.description}</p>
-                  </div>
-                ))}
+                {selectedDetails.events.map((ev) => {
+                  const isEkadashi = ev.category === 'ekadashi';
+                  return (
+                    <div
+                      key={ev.id}
+                      className={`p-3 rounded-2xl border ${
+                        isEkadashi
+                          ? 'bg-[#FFFBEB] border-[#F59E0B]/45 dark:bg-amber-950/50 dark:border-amber-500/40'
+                          : 'bg-[var(--holiday-soft-bg)] border-[var(--holiday-border)]'
+                      }`}
+                    >
+                      <p
+                        className={`font-devanagari ${
+                          isEkadashi
+                            ? 'text-base font-extrabold text-[#92400E] dark:text-amber-200'
+                            : 'text-sm font-bold text-[var(--holiday-soft-text)]'
+                        }`}
+                      >
+                        {ev.titleNe}
+                      </p>
+                      <p
+                        className={`text-xs ${
+                          isEkadashi
+                            ? 'font-bold text-[var(--text-primary)]'
+                            : 'font-medium text-[var(--text-primary)]'
+                        }`}
+                      >
+                        {ev.titleEn}
+                      </p>
+                      <p className="text-xs text-[var(--text-secondary)] mt-1 leading-relaxed">{ev.description}</p>
+                    </div>
+                  );
+                })}
               </div>
             )}
 
@@ -549,26 +576,46 @@ export function CalendarScreen({
                 {BS_MONTHS_EN[viewMonth - 1]} Festivals & Holidays
               </h3>
               <div className="space-y-2">
-                {monthFestivals.map((f) => (
-                  <button
-                    key={f.id}
-                    type="button"
-                    onClick={() => onSelectBs({ year: viewYear, month: viewMonth, day: f.bsDay })}
-                    className="w-full flex items-center justify-between gap-2 p-2.5 rounded-xl hover:bg-[var(--bg-surface-soft)] text-left transition-colors cursor-pointer"
-                  >
-                    <div className="min-w-0">
-                      <p className="font-devanagari text-xs font-bold text-[var(--text-primary)] truncate">
-                        {toDevanagari(f.bsDay)} {BS_MONTHS_NE[viewMonth - 1]} · {f.titleNe}
-                      </p>
-                      <p className="text-[11px] text-[var(--text-muted)] truncate">{f.titleEn}</p>
-                    </div>
-                    {f.isPublicHoliday && (
-                      <span className="text-[10px] font-semibold text-[var(--accent-secondary)] whitespace-nowrap">
-                        Holiday
-                      </span>
-                    )}
-                  </button>
-                ))}
+                {monthFestivals.map((f) => {
+                  const isEkadashi = f.category === 'ekadashi';
+                  return (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => onSelectBs({ year: viewYear, month: viewMonth, day: f.bsDay })}
+                      className="w-full flex items-center justify-between gap-2 p-2.5 rounded-xl hover:bg-[var(--bg-surface-soft)] text-left transition-colors cursor-pointer"
+                    >
+                      <div className="min-w-0">
+                        <p
+                          className={`font-devanagari text-xs truncate ${
+                            isEkadashi
+                              ? 'font-extrabold text-[#B45309] dark:text-amber-300'
+                              : 'font-bold text-[var(--text-primary)]'
+                          }`}
+                        >
+                          {toDevanagari(f.bsDay)} {BS_MONTHS_NE[viewMonth - 1]} · {f.titleNe}
+                        </p>
+                        <p
+                          className={`text-[11px] truncate ${
+                            isEkadashi ? 'font-bold text-[var(--text-primary)]' : 'text-[var(--text-muted)]'
+                          }`}
+                        >
+                          {f.titleEn}
+                        </p>
+                      </div>
+                      {f.isPublicHoliday && (
+                        <span className="text-[10px] font-semibold text-[var(--accent-secondary)] whitespace-nowrap">
+                          Holiday
+                        </span>
+                      )}
+                      {isEkadashi && (
+                        <span className="text-[10px] font-extrabold text-[#B45309] dark:text-amber-300 whitespace-nowrap">
+                          Ekadashi
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}

@@ -1,8 +1,10 @@
-import { ArrowLeftRight, CalendarDays, Compass, Home, Sparkles } from 'lucide-react';
 import { AppScreen } from '../types/app';
+import { IconThemeId } from '../types/theme';
+import { PatroIconName, PatroThemedIcon } from './NepaliIcons';
 
 interface BottomNavProps {
   activeScreen: AppScreen;
+  iconTheme: IconThemeId;
   onNavigate: (screen: AppScreen) => void;
 }
 
@@ -10,25 +12,25 @@ const TABS: Array<{
   id: AppScreen;
   label: string;
   labelNe: string;
-  icon: typeof Home;
+  iconName: PatroIconName;
 }> = [
-  { id: 'home', label: 'Home', labelNe: 'गृह', icon: Home },
-  { id: 'calendar', label: 'Calendar', labelNe: 'पात्रो', icon: CalendarDays },
-  { id: 'panchang', label: 'Panchang', labelNe: 'पञ्चाङ्ग', icon: Compass },
-  { id: 'converter', label: 'Convert', labelNe: 'मिति', icon: ArrowLeftRight },
-  { id: 'festivals', label: 'Festivals', labelNe: 'चाडपर्व', icon: Sparkles },
+  { id: 'home', label: 'Home', labelNe: 'गृह', iconName: 'home' },
+  { id: 'calendar', label: 'Patro', labelNe: 'पात्रो', iconName: 'calendar' },
+  { id: 'panchang', label: 'Panchang', labelNe: 'पञ्चाङ्ग', iconName: 'panchang' },
+  { id: 'assistant', label: 'AI Guide', labelNe: 'सहायक', iconName: 'assistant' },
+  { id: 'sanctuary', label: '3D Stupa', labelNe: '३डी', iconName: 'sanctuary' },
+  { id: 'festivals', label: 'Festivals', labelNe: 'चाडपर्व', iconName: 'festivals' },
 ];
 
-export function BottomNav({ activeScreen, onNavigate }: BottomNavProps) {
+export function BottomNav({ activeScreen, iconTheme, onNavigate }: BottomNavProps) {
   return (
     <nav
       aria-label="Mobile navigation"
       style={{ boxShadow: '0 -6px 24px -12px rgba(0,0,0,0.18)' }}
       className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[var(--bg-nav)] backdrop-blur-md border-t border-[var(--border-subtle)] pb-safe"
     >
-      <div className="grid grid-cols-5 items-center h-15 max-w-lg mx-auto px-1">
+      <div className="grid grid-cols-6 items-center h-15 max-w-lg mx-auto px-0.5">
         {TABS.map((tab) => {
-          const Icon = tab.icon;
           const isActive = activeScreen === tab.id;
           return (
             <button
@@ -47,7 +49,12 @@ export function BottomNav({ activeScreen, onNavigate }: BottomNavProps) {
                   isActive ? 'bg-[var(--holiday-soft-bg)] text-[var(--accent-secondary)]' : 'bg-transparent'
                 }`}
               >
-                <Icon className="h-[19px] w-[19px]" strokeWidth={isActive ? 2.4 : 1.9} />
+                <PatroThemedIcon
+                  name={tab.iconName}
+                  iconTheme={iconTheme}
+                  className="h-[19px] w-[19px]"
+                  strokeWidth={isActive ? 2.3 : 1.85}
+                />
               </span>
               <span className="text-[10px] font-semibold tracking-tight leading-none whitespace-nowrap">
                 {tab.label}

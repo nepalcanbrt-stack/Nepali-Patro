@@ -1,18 +1,23 @@
-import { Calendar, ChevronRight, Settings } from 'lucide-react';
+import { ChevronRight, Settings } from 'lucide-react';
+import { useFirebase } from '../contexts/FirebaseContext';
+import { NepalTimeState } from '../hooks/useNepalTime';
+import { AppScreen } from '../types/app';
+import { IconThemeId } from '../types/theme';
 import {
   formatAdDateShort,
   formatBsDateNe,
   getWeekdayNameNe,
 } from '../utils/nepaliDate';
-import { NepalTimeState } from '../hooks/useNepalTime';
-import { AppScreen } from '../types/app';
+import { PatroThemedIcon } from './NepaliIcons';
 
 interface StickyDateBarProps {
   nepalTime: NepalTimeState;
   activeScreen: AppScreen;
+  iconTheme: IconThemeId;
   onNavigate: (screen: AppScreen) => void;
   onOpenTodayInCalendar: () => void;
   onOpenSettings: () => void;
+  onOpenLogin: () => void;
 }
 
 const NAV_ITEMS: Array<{ id: AppScreen; labelNe: string; labelEn: string }> = [
@@ -21,24 +26,29 @@ const NAV_ITEMS: Array<{ id: AppScreen; labelNe: string; labelEn: string }> = [
   { id: 'panchang', labelNe: 'पञ्चाङ्ग', labelEn: 'Panchang' },
   { id: 'converter', labelNe: 'रूपान्तरण', labelEn: 'Converter' },
   { id: 'festivals', labelNe: 'चाडपर्व', labelEn: 'Festivals' },
+  { id: 'assistant', labelNe: 'ज्योतिष AI', labelEn: 'AI Guide' },
+  { id: 'sanctuary', labelNe: '३डी मन्दिर', labelEn: '3D Stupa' },
 ];
 
 export function StickyDateBar({
   nepalTime,
   activeScreen,
+  iconTheme,
   onNavigate,
   onOpenTodayInCalendar,
   onOpenSettings,
+  onOpenLogin,
 }: StickyDateBarProps) {
+  const { user, isVerifiedIdentity } = useFirebase();
   const { todayBs, todayAd, panchang, timeFormatted } = nepalTime;
   const bsDateText = formatBsDateNe(todayBs);
   const weekdayNe = getWeekdayNameNe(todayBs.weekday);
   const adDateText = formatAdDateShort(todayAd);
 
   return (
-    <header className="sticky top-0 z-40 w-full px-3 pt-2.5 pb-1.5 sm:px-6 pointer-events-none">
-      <div className="mx-auto max-w-6xl flex items-center justify-between gap-2 sm:gap-4 pointer-events-auto">
-        {/* Floating Themed Date Pill — Always Visible Across All Screens */}
+    <header className="sticky top-0 z-40 w-full px-3 pt-[max(0.625rem,env(safe-area-inset-top))] pb-1.5 sm:px-6 pointer-events-none">
+      <div className="mx-auto max-w-6xl flex items-center justify-between gap-2 sm:gap-3 pointer-events-auto">
+        {/* Floating Themed Date Pill — Always Visible While Scrolling Across All Screens */}
         <button
           type="button"
           onClick={onOpenTodayInCalendar}
@@ -48,7 +58,7 @@ export function StickyDateBar({
             borderColor: 'var(--pill-border)',
             boxShadow: 'var(--card-shadow)',
           }}
-          className="group flex-1 lg:flex-initial lg:min-w-[390px] min-w-0 flex items-center justify-between gap-2.5 sm:gap-3 px-3 sm:px-3.5 py-2 rounded-full backdrop-blur-md border hover:border-[var(--border-accent)] active:scale-[0.99] transition-all duration-200 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-link)]"
+          className="group flex-1 lg:flex-initial lg:min-w-[380px] min-w-0 flex items-center justify-between gap-2 sm:gap-3 px-3 sm:px-3.5 py-2 rounded-full backdrop-blur-md border hover:border-[var(--border-accent)] active:scale-[0.99] transition-all duration-200 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-link)]"
         >
           <div className="flex items-center gap-2.5 min-w-0">
             <span
@@ -58,7 +68,7 @@ export function StickyDateBar({
               }}
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--accent-secondary)] shadow-xs border"
             >
-              <Calendar className="h-4.5 w-4.5" strokeWidth={2.2} />
+              <PatroThemedIcon name="calendar" iconTheme={iconTheme} className="h-4.5 w-4.5" strokeWidth={2.1} />
             </span>
 
             <div className="min-w-0 text-left">
@@ -97,8 +107,8 @@ export function StickyDateBar({
           </div>
         </button>
 
-        {/* Desktop Integrated Navigation Rail + Settings Trigger */}
-        <div className="flex items-center gap-2 shrink-0">
+        {/* Desktop Integrated Navigation Rail + Account & Settings Triggers */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <nav
             aria-label="Primary navigation"
             style={{ boxShadow: 'var(--card-shadow)' }}
@@ -111,7 +121,7 @@ export function StickyDateBar({
                   key={item.id}
                   type="button"
                   onClick={() => onNavigate(item.id)}
-                  className={`px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap shrink-0 transition-all duration-150 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-link)] ${
+                  className={`px-3.5 py-2 rounded-full text-xs font-semibold whitespace-nowrap shrink-0 transition-all duration-150 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-link)] ${
                     isActive
                       ? 'bg-[var(--accent-primary)] text-white shadow-xs'
                       : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-soft)]'
@@ -125,8 +135,28 @@ export function StickyDateBar({
 
           <button
             type="button"
+            onClick={onOpenLogin}
+            aria-label={isVerifiedIdentity ? 'Manage private account' : 'Sign in with Gmail or Phone'}
+            title={isVerifiedIdentity ? `Signed in (${user?.email || user?.phoneNumber})` : 'Private Sign In'}
+            style={{ boxShadow: 'var(--card-shadow)' }}
+            className={`min-h-[44px] min-w-[44px] px-2.5 flex items-center justify-center gap-1.5 rounded-full backdrop-blur-md border transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-link)] ${
+              activeScreen === 'login'
+                ? 'bg-[var(--accent-primary)] text-white border-[var(--accent-primary)]'
+                : isVerifiedIdentity
+                ? 'bg-[var(--bg-nav)] text-emerald-700 dark:text-emerald-300 border-emerald-500/40 hover:border-[var(--border-accent)]'
+                : 'bg-[var(--bg-nav)] text-[var(--text-primary)] border-[var(--border-subtle)] hover:border-[var(--border-accent)] hover:text-[var(--accent-link)]'
+            }`}
+          >
+            <PatroThemedIcon name="lock" iconTheme={iconTheme} className="h-4.5 w-4.5 shrink-0" />
+            <span className="hidden md:inline text-xs font-semibold whitespace-nowrap">
+              {isVerifiedIdentity ? 'Account' : 'Sign In'}
+            </span>
+          </button>
+
+          <button
+            type="button"
             onClick={onOpenSettings}
-            aria-label="Open app settings and color themes"
+            aria-label="Open app settings, icon themes, and color themes"
             title="Settings & Themes"
             style={{ boxShadow: 'var(--card-shadow)' }}
             className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full bg-[var(--bg-nav)] backdrop-blur-md border border-[var(--border-subtle)] text-[var(--text-primary)] hover:border-[var(--border-accent)] hover:text-[var(--accent-link)] active:scale-[0.97] transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-link)]"

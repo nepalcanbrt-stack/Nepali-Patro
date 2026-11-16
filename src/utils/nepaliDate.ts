@@ -190,10 +190,13 @@ export function getWeekdayNameEnShort(weekday: number): string {
   return WEEKDAYS_EN_SHORT[weekday] ?? WEEKDAYS_EN_SHORT[0];
 }
 
-export function getNepalSambatYear(bsYear: number, bsMonth: number): number {
-  // Nepal Sambat 1147 begins in Kartik/Mangsir 2083 BS (~month 7/8)
+export function getNepalSambatYear(bsYear: number, bsMonth: number, bsDay: number = 1): number {
+  // In 2083 BS, Mha Puja / Nepal Sambat 1147 begins on Kartik 23 (2083-07-23)
   const base = bsYear - 937;
-  return bsMonth >= 8 ? base + 1 : base;
+  if (bsYear === 2083) {
+    return bsMonth > 7 || (bsMonth === 7 && bsDay >= 23) ? base + 1 : base;
+  }
+  return bsMonth >= 8 || (bsMonth === 7 && bsDay >= 20) ? base + 1 : base;
 }
 
 export function formatNepalClock(hours: number, minutes: number): string {

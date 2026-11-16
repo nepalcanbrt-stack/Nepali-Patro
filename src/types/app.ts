@@ -1,4 +1,12 @@
-export type AppScreen = 'home' | 'calendar' | 'panchang' | 'converter' | 'festivals';
+export type AppScreen =
+  | 'home'
+  | 'calendar'
+  | 'panchang'
+  | 'converter'
+  | 'festivals'
+  | 'assistant'
+  | 'sanctuary'
+  | 'login';
 
 export interface UserNote {
   id: string;

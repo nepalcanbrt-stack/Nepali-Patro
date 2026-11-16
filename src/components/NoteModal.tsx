@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { X } from 'lucide-react';
 import { BS_MONTHS_EN, BS_MONTHS_NE } from '../data/bsCalendarData';
 import { UserNote } from '../types/app';
@@ -34,8 +35,6 @@ export function NoteModal({ isOpen, initialBsDate, onClose, onSave }: NoteModalP
     }
   }, [isOpen, initialBsDate]);
 
-  if (!isOpen) return null;
-
   const maxDay = getDaysInBsMonth(year, month);
   const safeDay = Math.min(day, maxDay);
 
@@ -58,14 +57,26 @@ export function NoteModal({ isOpen, initialBsDate, onClose, onSave }: NoteModalP
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/55 backdrop-blur-xs p-0 sm:p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="note-modal-title"
-    >
-      <div className="w-full sm:max-w-md bg-[var(--bg-surface)] text-[var(--text-primary)] rounded-t-3xl sm:rounded-3xl border border-[var(--border-subtle)] shadow-2xl overflow-hidden animate-in fade-in duration-150">
-        <div className="sm:hidden w-10 h-1.5 bg-[var(--border-accent)]/60 rounded-full mx-auto mt-3" />
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.16 }}
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/55 backdrop-blur-xs p-0 sm:p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="note-modal-title"
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 24, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 16, scale: 0.98 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="w-full sm:max-w-md bg-[var(--bg-surface)] text-[var(--text-primary)] rounded-t-3xl sm:rounded-3xl border border-[var(--border-subtle)] shadow-2xl overflow-hidden"
+          >
+            <div className="sm:hidden w-10 h-1.5 bg-[var(--border-accent)]/60 rounded-full mx-auto mt-3" />
 
         <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-[var(--border-soft)]">
           <div>
@@ -210,7 +221,9 @@ export function NoteModal({ isOpen, initialBsDate, onClose, onSave }: NoteModalP
             </button>
           </div>
         </form>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

@@ -23,17 +23,21 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isEmailVerified() {
-      return isSignedIn() && request.auth.token.email_verified == true;
+    // Require either a verified email (Gmail/Google/Email link) OR a verified SMS phone number
+    function isVerifiedUser() {
+      return isSignedIn() && (
+        request.auth.token.email_verified == true ||
+        (request.auth.token.phone_number is string && request.auth.token.phone_number.size() >= 7 && request.auth.token.phone_number.size() <= 24)
+      );
     }
 
     function isOwner(userId) {
-      return isEmailVerified() && request.auth.uid == userId;
+      return isVerifiedUser() && request.auth.uid == userId;
     }
 
     function isValidUserProfile(data, userId) {
-      return data.keys().hasAll(['uid', 'displayName', 'email', 'photoURL', 'createdAt', 'updatedAt'])
-        && data.keys().hasOnly(['uid', 'displayName', 'email', 'photoURL', 'createdAt', 'updatedAt'])
+      return data.keys().hasAll(['uid', 'displayName', 'email', 'phoneNumber', 'photoURL', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'email', 'phoneNumber', 'photoURL', 'createdAt', 'updatedAt'])
         && data.uid is string
         && data.uid == userId
         && data.uid == request.auth.uid
@@ -43,8 +47,10 @@ service cloud.firestore {
         && data.displayName.size() >= 1
         && data.displayName.size() <= 100
         && data.email is string
-        && data.email.size() >= 3
         && data.email.size() <= 254
+        && data.phoneNumber is string
+        && data.phoneNumber.size() <= 24
+        && (data.email.size() >= 3 || data.phoneNumber.size() >= 7)
         && data.photoURL is string
         && data.photoURL.size() <= 512
         && data.createdAt is timestamp
@@ -78,8 +84,8 @@ service cloud.firestore {
     }
 
     function isValidUserPreferences(data, userId) {
-      return data.keys().hasAll(['ownerUid', 'preferredRashi', 'useDevanagariNums', 'theme', 'updatedAt'])
-        && data.keys().hasOnly(['ownerUid', 'preferredRashi', 'useDevanagariNums', 'theme', 'updatedAt'])
+      return data.keys().hasAll(['ownerUid', 'preferredRashi', 'useDevanagariNums', 'theme', 'iconTheme', 'updatedAt'])
+        && data.keys().hasOnly(['ownerUid', 'preferredRashi', 'useDevanagariNums', 'theme', 'iconTheme', 'updatedAt'])
         && data.ownerUid is string
         && data.ownerUid == userId
         && data.ownerUid == request.auth.uid
@@ -92,11 +98,15 @@ service cloud.firestore {
         && data.theme is string
         && data.theme.size() >= 1
         && data.theme.size() <= 32
-        && data.theme in ['lavender-dawn', 'himalayan-sunrise', 'ancient-parchment', 'deep-temple-purple']
+        && data.theme in ['lavender-dawn', 'nepali-dhaka', 'himalayan-sunrise', 'ancient-parchment', 'deep-temple-purple']
+        && data.iconTheme is string
+        && data.iconTheme.size() >= 1
+        && data.iconTheme.size() <= 24
+        && data.iconTheme in ['nepali-cultural', 'classic']
         && data.updatedAt is timestamp;
     }
 
-    // Isolated PII user profile
+    // Isolated PII user profile (private owner-only read/write)
     match /users/{userId}/profile/info {
       allow get: if isValidId(userId) && isOwner(userId);
       allow create: if isValidId(userId)
@@ -110,11 +120,11 @@ service cloud.firestore {
         && incoming().uid == existing().uid
         && incoming().createdAt == existing().createdAt
         && incoming().updatedAt == request.time
-        && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'email', 'photoURL', 'updatedAt']);
+        && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'email', 'phoneNumber', 'photoURL', 'updatedAt']);
       allow delete: if false;
     }
 
-    // Personal Bikram Sambat calendar notes
+    // Personal Bikram Sambat calendar notes (private owner-only)
     match /users/{userId}/notes/{noteId} {
       allow get: if isValidId(userId) && isValidId(noteId) && isOwner(userId) && existing().ownerUid == request.auth.uid;
       allow list: if isOwner(userId) && resource.data.ownerUid == request.auth.uid;
@@ -136,7 +146,7 @@ service cloud.firestore {
       allow delete: if isValidId(userId) && isValidId(noteId) && isOwner(userId) && existing().ownerUid == request.auth.uid;
     }
 
-    // Synced user preferences
+    // Synced user preferences (private owner-only)
     match /users/{userId}/preferences/settings {
       allow get: if isValidId(userId) && isOwner(userId);
       allow create: if isValidId(userId)
@@ -148,7 +158,7 @@ service cloud.firestore {
         && isValidUserPreferences(incoming(), userId)
         && incoming().ownerUid == existing().ownerUid
         && incoming().updatedAt == request.time
-        && incoming().diff(existing()).affectedKeys().hasOnly(['preferredRashi', 'useDevanagariNums', 'theme', 'updatedAt']);
+        && incoming().diff(existing()).affectedKeys().hasOnly(['preferredRashi', 'useDevanagariNums', 'theme', 'iconTheme', 'updatedAt']);
       allow delete: if isValidId(userId) && isOwner(userId);
     }
   }

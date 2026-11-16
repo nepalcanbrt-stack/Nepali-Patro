@@ -17,21 +17,11 @@ import { UserNote } from '../types/app';
 
 const STORAGE_KEY = 'nepal_patro_user_notes_v1';
 
-const DEFAULT_NOTES: UserNote[] = [
-  {
-    id: 'sample-1',
-    bsKey: '2083-08-04',
-    title: 'Haribodhani Ekadashi & Tulsi Puja',
-    note: 'Prepare marigold garland and brass diyo before dusk.',
-    time: '05:30 PM',
-    category: 'puja',
-    createdAt: 1,
-  },
-];
+const DEFAULT_NOTES: UserNote[] = [];
 
 function sanitizeNotePayload(entry: Omit<UserNote, 'id' | 'createdAt'>) {
   const allowedCategories: UserNote['category'][] = ['personal', 'puja', 'birthday', 'reminder'];
-  const bsKey = /^\d{4}-\d{2}-\d{2}$/.test(entry.bsKey) ? entry.bsKey : '2083-07-30';
+  const bsKey = /^\d{4}-\d{2}-\d{2}$/.test(entry.bsKey) ? entry.bsKey : '2083-07-29';
   const title = entry.title.trim().slice(0, 120) || 'Untitled Event';
   const note = (entry.note || '').trim().slice(0, 1000);
   const time = (entry.time || '').trim().slice(0, 32);
@@ -40,13 +30,19 @@ function sanitizeNotePayload(entry: Omit<UserNote, 'id' | 'createdAt'>) {
 }
 
 export function useUserEvents() {
-  const { user, authReady } = useFirebase();
+  const { user, authReady, isVerifiedIdentity } = useFirebase();
   const [localNotes, setLocalNotes] = useState<UserNote[]>(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) return parsed;
+        if (Array.isArray(parsed)) {
+          // Strip legacy stale sample-1 note that duplicated 2083-08-04 Haribodhani Ekadashi
+          return parsed.filter(
+            (item: UserNote) =>
+              !(item?.id === 'sample-1' && item?.bsKey === '2083-08-04')
+          );
+        }
       }
     } catch {
       // Ignore storage errors
@@ -66,9 +62,9 @@ export function useUserEvents() {
     }
   }, [localNotes]);
 
-  // Real-time Firestore listener when user is authenticated & verified
+  // Real-time Firestore listener when user is authenticated & verified (Gmail/Email or Phone OTP)
   useEffect(() => {
-    if (!authReady || !user || !user.emailVerified) {
+    if (!authReady || !user || !isVerifiedIdentity) {
       setCloudNotes([]);
       setNotesLoading(false);
       return;
@@ -108,14 +104,25 @@ export function useUserEvents() {
     );
 
     return unsubscribe;
-  }, [authReady, user]);
+  }, [authReady, user, isVerifiedIdentity]);
 
-  const isCloudSynced = Boolean(authReady && user && user.emailVerified);
+  const isCloudSynced = Boolean(authReady && user && isVerifiedIdentity);
   const notes = isCloudSynced ? cloudNotes : localNotes;
 
   const addNote = useCallback(
     async (entry: Omit<UserNote, 'id' | 'createdAt'>) => {
       const sanitized = sanitizeNotePayload(entry);
+
+      // Guard against duplicate/double-entry submission on the exact same date and title
+      const existingDup = notes.find(
+        (n) =>
+          n.bsKey === sanitized.bsKey &&
+          n.title.trim().toLowerCase() === sanitized.title.toLowerCase() &&
+          (n.time || '') === sanitized.time
+      );
+      if (existingDup) {
+        return existingDup;
+      }
 
       if (isCloudSynced && user) {
         const notesPath = `users/${user.uid}/notes`;
@@ -150,7 +157,7 @@ export function useUserEvents() {
       setLocalNotes((prev) => [newNote, ...prev]);
       return newNote;
     },
-    [isCloudSynced, user]
+    [isCloudSynced, user, notes]
   );
 
   const deleteNote = useCallback(

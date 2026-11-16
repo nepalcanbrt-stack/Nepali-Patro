@@ -2,7 +2,10 @@ export type ThemeId =
   | 'lavender-dawn'
   | 'himalayan-sunrise'
   | 'ancient-parchment'
-  | 'deep-temple-purple';
+  | 'deep-temple-purple'
+  | 'nepali-dhaka';
+
+export type IconThemeId = 'nepali-cultural' | 'classic';
 
 export interface ThemePaletteMeta {
   id: ThemeId;
@@ -32,6 +35,20 @@ export const THEME_PALETTES: ThemePaletteMeta[] = [
       primary: '#4C1D95',
       secondary: '#9F1239',
       pillGradient: 'linear-gradient(90deg, #F3E8FF, #FCE7F3)',
+    },
+  },
+  {
+    id: 'nepali-dhaka',
+    nameEn: 'Nepali Dhaka & Gold',
+    nameNe: 'नेपाली ढाका र स्वर्ण',
+    description: 'Traditional Palpali Dhaka crimson, Newari temple brass gold & snow cream.',
+    isDark: false,
+    swatches: {
+      canvas: '#FDF7F5',
+      surface: '#FFFFFF',
+      primary: '#9F1239',
+      secondary: '#B45309',
+      pillGradient: 'linear-gradient(90deg, #FFE4E6, #FEF3C7)',
     },
   },
   {
@@ -82,4 +99,8 @@ export const VALID_THEME_IDS: ThemeId[] = THEME_PALETTES.map((t) => t.id);
 
 export function isValidThemeId(value: unknown): value is ThemeId {
   return typeof value === 'string' && VALID_THEME_IDS.includes(value as ThemeId);
+}
+
+export function isValidIconThemeId(value: unknown): value is IconThemeId {
+  return value === 'nepali-cultural' || value === 'classic';
 }
