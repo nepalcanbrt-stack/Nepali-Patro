@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, motion, useDragControls } from 'motion/react';
 import { X } from 'lucide-react';
 import {
   BS_END_YEAR,
@@ -8,6 +8,11 @@ import {
   BS_START_YEAR,
 } from '../data/bsCalendarData';
 import { UserNote } from '../types/app';
+import {
+  modalBackdropVariants,
+  modalSheetVariants,
+  PATRO_SPRING_SNAPPY,
+} from '../utils/motionVariants';
 import { bsToKey, formatBsDateNe, getDaysInBsMonth } from '../utils/nepaliDate';
 
 interface NoteModalProps {
@@ -18,6 +23,7 @@ interface NoteModalProps {
 }
 
 export function NoteModal({ isOpen, initialBsDate, onClose, onSave }: NoteModalProps) {
+  const dragControls = useDragControls();
   const [year, setYear] = useState(initialBsDate.year);
   const [month, setMonth] = useState(initialBsDate.month);
   const [day, setDay] = useState(initialBsDate.day);
@@ -39,6 +45,15 @@ export function NoteModal({ isOpen, initialBsDate, onClose, onSave }: NoteModalP
       setSaving(false);
     }
   }, [isOpen, initialBsDate]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose]);
 
   const maxDay = getDaysInBsMonth(year, month);
   const safeDay = Math.min(day, maxDay);
@@ -65,25 +80,48 @@ export function NoteModal({ isOpen, initialBsDate, onClose, onSave }: NoteModalP
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.16 }}
+          variants={modalBackdropVariants}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) onClose();
+          }}
           className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/55 backdrop-blur-xs p-0 sm:p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="note-modal-title"
         >
           <motion.div
-            initial={{ opacity: 0, y: 24, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 16, scale: 0.98 }}
-            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            variants={modalSheetVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            drag="y"
+            dragListener={false}
+            dragControls={dragControls}
+            dragConstraints={{ top: 0, bottom: 260 }}
+            dragElastic={{ top: 0.04, bottom: 0.36 }}
+            dragSnapToOrigin
+            transition={PATRO_SPRING_SNAPPY}
+            onDragEnd={(_event, info) => {
+              if (info.offset.y > 84 || info.velocity.y > 420) {
+                onClose();
+              }
+            }}
             className="w-full sm:max-w-md bg-[var(--bg-surface)] text-[var(--text-primary)] rounded-t-3xl sm:rounded-3xl border border-[var(--border-subtle)] shadow-2xl overflow-hidden"
           >
-            <div className="sm:hidden w-10 h-1.5 bg-[var(--border-accent)]/60 rounded-full mx-auto mt-3" />
+            <div
+              onPointerDown={(e) => dragControls.start(e)}
+              className="sm:hidden pt-3 pb-1 cursor-grab active:cursor-grabbing touch-none"
+            >
+              <div className="w-10 h-1.5 bg-[var(--border-accent)]/60 rounded-full mx-auto" />
+            </div>
 
-        <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-[var(--border-soft)]">
+        <div
+          onPointerDown={(e) => dragControls.start(e)}
+          className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-[var(--border-soft)] touch-none"
+        >
           <div>
             <h2 id="note-modal-title" className="text-lg font-bold text-[var(--text-primary)]">
               Add Personal Note
@@ -94,9 +132,10 @@ export function NoteModal({ isOpen, initialBsDate, onClose, onSave }: NoteModalP
           </div>
           <button
             type="button"
+            onPointerDown={(e) => e.stopPropagation()}
             onClick={onClose}
             aria-label="Close modal"
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full text-[var(--text-secondary)] hover:bg-[var(--bg-surface-soft)] transition-colors cursor-pointer"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full text-[var(--text-secondary)] hover:bg-[var(--bg-surface-soft)] active:scale-[0.94] transition-all cursor-pointer"
           >
             <X className="h-5 w-5" />
           </button>

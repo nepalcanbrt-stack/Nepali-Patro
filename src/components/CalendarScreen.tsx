@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { motion } from 'motion/react';
 import {
   Calendar as CalendarIcon,
   ChevronLeft,
@@ -21,6 +22,12 @@ import {
 } from '../data/bsCalendarData';
 import { NepalTimeState } from '../hooks/useNepalTime';
 import { UserNote } from '../types/app';
+import {
+  PATRO_EASE,
+  PATRO_SPRING_SNAPPY,
+  staggerCardVariants,
+  staggerContainerVariants,
+} from '../utils/motionVariants';
 import {
   bsToAdParts,
   bsToKey,
@@ -178,9 +185,15 @@ export function CalendarScreen({
   }, [viewYear, viewMonth]);
 
   return (
-    <div className="space-y-5 pb-8">
+    <motion.div
+      variants={staggerContainerVariants}
+      initial="hidden"
+      animate="visible"
+      className="space-y-5 pb-8"
+    >
       {/* Calendar Header Controls */}
-      <section
+      <motion.section
+        variants={staggerCardVariants}
         style={{ boxShadow: 'var(--card-shadow)' }}
         className="rounded-3xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] p-4 sm:p-6"
       >
@@ -190,7 +203,7 @@ export function CalendarScreen({
               type="button"
               onClick={handlePrevMonth}
               aria-label="Previous month"
-              className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-[var(--bg-surface-soft)] border border-[var(--border-subtle)] text-[var(--text-primary)] hover:bg-[var(--accent-soft-bg)] transition-colors cursor-pointer"
+              className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-[var(--bg-surface-soft)] border border-[var(--border-subtle)] text-[var(--text-primary)] hover:bg-[var(--accent-soft-bg)] active:scale-[0.94] transition-all cursor-pointer"
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
@@ -209,7 +222,7 @@ export function CalendarScreen({
               type="button"
               onClick={handleNextMonth}
               aria-label="Next month"
-              className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-[var(--bg-surface-soft)] border border-[var(--border-subtle)] text-[var(--text-primary)] hover:bg-[var(--accent-soft-bg)] transition-colors cursor-pointer"
+              className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-[var(--bg-surface-soft)] border border-[var(--border-subtle)] text-[var(--text-primary)] hover:bg-[var(--accent-soft-bg)] active:scale-[0.94] transition-all cursor-pointer"
             >
               <ChevronRight className="h-5 w-5" />
             </button>
@@ -272,20 +285,30 @@ export function CalendarScreen({
                 ['holidays', 'Holidays'],
                 ['notes', 'My Notes'],
               ] as const
-            ).map(([val, label]) => (
-              <button
-                key={val}
-                type="button"
-                onClick={() => setFilter(val)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
-                  filter === val
-                    ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-xs'
-                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
+            ).map(([val, label]) => {
+              const isActive = filter === val;
+              return (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => setFilter(val)}
+                  className={`relative px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap active:scale-[0.97] transition-colors cursor-pointer ${
+                    isActive
+                      ? 'text-[var(--text-primary)]'
+                      : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  {isActive && (
+                    <motion.span
+                      layoutId="calendar-filter-pill"
+                      transition={PATRO_SPRING_SNAPPY}
+                      className="absolute inset-0 rounded-lg bg-[var(--bg-surface)] shadow-xs"
+                    />
+                  )}
+                  <span className="relative z-10">{label}</span>
+                </button>
+              );
+            })}
           </div>
 
           <div className="flex items-center gap-4 text-[11px] text-[var(--text-muted)]">
@@ -297,10 +320,13 @@ export function CalendarScreen({
             </span>
           </div>
         </div>
-      </section>
+      </motion.section>
 
       {/* CALENDAR GRID + SELECTED DAY INSPECTOR */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <motion.div
+        variants={staggerCardVariants}
+        className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start"
+      >
         {/* Monthly Grid (8 cols on desktop) */}
         <section
           style={{ boxShadow: 'var(--card-shadow)' }}
@@ -325,7 +351,13 @@ export function CalendarScreen({
           </div>
 
           {/* Days Matrix */}
-          <div className="grid grid-cols-7 gap-1 sm:gap-2">
+          <motion.div
+            key={`${viewYear}-${viewMonth}`}
+            initial={{ opacity: 0.35, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.18, ease: PATRO_EASE }}
+            className="grid grid-cols-7 gap-1 sm:gap-2"
+          >
             {calendarGrid.map((cell, idx) => {
               if (!cell) {
                 return <div key={`empty-${idx}`} className="min-h-[62px] sm:min-h-[82px]" />;
@@ -422,7 +454,7 @@ export function CalendarScreen({
                 </button>
               );
             })}
-          </div>
+          </motion.div>
         </section>
 
         {/* Selected Day Details Panel (4 cols on desktop) */}
@@ -620,7 +652,7 @@ export function CalendarScreen({
             </div>
           )}
         </aside>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { motion } from 'motion/react';
 import { ArrowLeftRight, Calendar, Copy, Check } from 'lucide-react';
 import {
   BS_END_YEAR,
@@ -7,6 +8,11 @@ import {
   BS_START_YEAR,
 } from '../data/bsCalendarData';
 import { NepalTimeState } from '../hooks/useNepalTime';
+import {
+  PATRO_SPRING_SNAPPY,
+  staggerCardVariants,
+  staggerContainerVariants,
+} from '../utils/motionVariants';
 import {
   adPartsToBs,
   bsToAdParts,
@@ -82,8 +88,14 @@ export function ConverterScreen({ nepalTime, onJumpToBsDate }: ConverterScreenPr
   };
 
   return (
-    <div className="space-y-6 pb-8">
-      <section
+    <motion.div
+      variants={staggerContainerVariants}
+      initial="hidden"
+      animate="visible"
+      className="space-y-6 pb-8"
+    >
+      <motion.section
+        variants={staggerCardVariants}
         style={{ boxShadow: 'var(--card-shadow)' }}
         className="rounded-3xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] p-5 sm:p-6"
       >
@@ -98,28 +110,35 @@ export function ConverterScreen({ nepalTime, onJumpToBsDate }: ConverterScreenPr
           </div>
 
           <div className="inline-flex items-center p-1 rounded-xl bg-[var(--bg-surface-soft)] self-start">
-            <button
-              type="button"
-              onClick={() => setMode('bs-to-ad')}
-              className={`px-4 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
-                mode === 'bs-to-ad'
-                  ? 'bg-[var(--accent-primary)] text-white shadow-xs'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              BS → AD
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode('ad-to-bs')}
-              className={`px-4 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
-                mode === 'ad-to-bs'
-                  ? 'bg-[var(--accent-primary)] text-white shadow-xs'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              AD → BS
-            </button>
+            {(
+              [
+                ['bs-to-ad', 'BS → AD'],
+                ['ad-to-bs', 'AD → BS'],
+              ] as const
+            ).map(([val, label]) => {
+              const isActive = mode === val;
+              return (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => setMode(val)}
+                  className={`relative px-4 py-2 rounded-lg text-xs font-semibold whitespace-nowrap active:scale-[0.97] transition-colors cursor-pointer ${
+                    isActive
+                      ? 'text-white'
+                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  {isActive && (
+                    <motion.span
+                      layoutId="converter-mode-pill"
+                      transition={PATRO_SPRING_SNAPPY}
+                      className="absolute inset-0 rounded-lg bg-[var(--accent-primary)] shadow-xs"
+                    />
+                  )}
+                  <span className="relative z-10">{label}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -307,7 +326,7 @@ export function ConverterScreen({ nepalTime, onJumpToBsDate }: ConverterScreenPr
             </div>
           </div>
         </div>
-      </section>
-    </div>
+      </motion.section>
+    </motion.div>
   );
 }

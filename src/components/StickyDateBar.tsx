@@ -1,3 +1,4 @@
+import { motion } from 'motion/react';
 import { Bell, ChevronRight, Settings } from 'lucide-react';
 import { useFirebase } from '../contexts/FirebaseContext';
 import { NepalTimeState } from '../hooks/useNepalTime';
@@ -8,6 +9,7 @@ import {
   formatBsDateNe,
   getWeekdayNameNe,
 } from '../utils/nepaliDate';
+import { PATRO_SPRING_SNAPPY } from '../utils/motionVariants';
 import { PatroThemedIcon } from './NepaliIcons';
 
 interface StickyDateBarProps {
@@ -127,13 +129,20 @@ export function StickyDateBar({
                   key={item.id}
                   type="button"
                   onClick={() => onNavigate(item.id)}
-                  className={`px-3.5 py-2 rounded-full text-xs font-semibold whitespace-nowrap shrink-0 transition-all duration-150 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-link)] ${
+                  className={`relative px-3.5 py-2 rounded-full text-xs font-semibold whitespace-nowrap shrink-0 transition-colors duration-150 active:scale-[0.97] cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-link)] ${
                     isActive
-                      ? 'bg-[var(--accent-primary)] text-white shadow-xs'
+                      ? 'text-white'
                       : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-soft)]'
                   }`}
                 >
-                  {item.labelEn}
+                  {isActive && (
+                    <motion.span
+                      layoutId="desktop-nav-pill"
+                      transition={PATRO_SPRING_SNAPPY}
+                      className="absolute inset-0 rounded-full bg-[var(--accent-primary)] shadow-xs"
+                    />
+                  )}
+                  <span className="relative z-10">{item.labelEn}</span>
                 </button>
               );
             })}

@@ -8,6 +8,7 @@ import {
   X,
 } from 'lucide-react';
 import { AppNotificationAlert } from '../hooks/useNotificationAlerts';
+import { PATRO_SPRING_SNAPPY } from '../utils/motionVariants';
 
 interface NotificationToastProps {
   alert: AppNotificationAlert | null;
@@ -28,13 +29,22 @@ export function NotificationToast({ alert, onAction, onDismiss }: NotificationTo
       {alert && (
         <motion.div
           key={alert.id}
-          initial={{ opacity: 0, y: 20, scale: 0.97 }}
+          initial={{ opacity: 0, y: 24, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 12, scale: 0.97 }}
-          transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+          exit={{ opacity: 0, y: 14, scale: 0.96 }}
+          transition={PATRO_SPRING_SNAPPY}
+          drag="x"
+          dragConstraints={{ left: -140, right: 200 }}
+          dragElastic={0.28}
+          dragSnapToOrigin
+          onDragEnd={(_e, info) => {
+            if (Math.abs(info.offset.x) > 72 || Math.abs(info.velocity.x) > 420) {
+              onDismiss();
+            }
+          }}
           role="status"
           aria-live="polite"
-          className="fixed bottom-20 lg:bottom-6 right-3.5 sm:right-6 z-50 w-[calc(100%-1.75rem)] max-w-sm rounded-2xl bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border-accent)] shadow-2xl p-3.5"
+          className="fixed bottom-20 lg:bottom-6 right-3.5 sm:right-6 z-50 w-[calc(100%-1.75rem)] max-w-sm rounded-2xl bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border-accent)] shadow-2xl p-3.5 cursor-grab active:cursor-grabbing"
         >
           {(() => {
             const Icon = getIcon(alert);
@@ -68,7 +78,7 @@ export function NotificationToast({ alert, onAction, onDismiss }: NotificationTo
                       type="button"
                       onClick={onDismiss}
                       aria-label="Dismiss notification"
-                      className="p-1 rounded-lg text-[var(--text-muted)] hover:bg-[var(--bg-surface-soft)] cursor-pointer"
+                      className="p-1.5 rounded-lg text-[var(--text-muted)] hover:bg-[var(--bg-surface-soft)] active:scale-[0.94] transition-all cursor-pointer"
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
@@ -84,7 +94,7 @@ export function NotificationToast({ alert, onAction, onDismiss }: NotificationTo
                       <button
                         type="button"
                         onClick={() => onAction(alert)}
-                        className="px-2.5 py-1 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-[11px] font-bold text-white transition-colors cursor-pointer"
+                        className="px-2.5 py-1 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] active:scale-[0.97] text-[11px] font-bold text-white transition-all cursor-pointer"
                       >
                         {alert.actionLabel}
                       </button>

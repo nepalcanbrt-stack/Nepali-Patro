@@ -1,10 +1,16 @@
 import { useMemo, useState } from 'react';
+import { motion } from 'motion/react';
 import { CalendarDays, Cloud, LogIn, Plus, Search, Trash2 } from 'lucide-react';
 import festivalLampsHero from '../assets/images/nepali_festival_lamps_1794569026377.jpg';
 import { useFirebase } from '../contexts/FirebaseContext';
 import { BS_MONTHS_EN, BS_MONTHS_NE, NEPALI_FESTIVALS } from '../data/bsCalendarData';
 import { NepalTimeState } from '../hooks/useNepalTime';
 import { UserNote } from '../types/app';
+import {
+  PATRO_SPRING_SNAPPY,
+  staggerCardVariants,
+  staggerContainerVariants,
+} from '../utils/motionVariants';
 import {
   bsToAdParts,
   diffBsDays,
@@ -102,9 +108,15 @@ export function FestivalsScreen({
   }, [notes, search]);
 
   return (
-    <div className="space-y-6 pb-8">
+    <motion.div
+      variants={staggerContainerVariants}
+      initial="hidden"
+      animate="visible"
+      className="space-y-6 pb-8"
+    >
       {/* Cultural Banner Header */}
-      <section
+      <motion.section
+        variants={staggerCardVariants}
         style={{
           backgroundImage: 'linear-gradient(to right, var(--hero-from), var(--hero-to))',
           boxShadow: 'var(--card-shadow)',
@@ -140,16 +152,17 @@ export function FestivalsScreen({
           <button
             type="button"
             onClick={() => onOpenNoteModal(todayBs)}
-            className="inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl bg-white text-[#1E1B2E] text-xs font-bold hover:bg-white/90 whitespace-nowrap shrink-0 shadow-sm transition-colors cursor-pointer"
+            className="inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl bg-white text-[#1E1B2E] text-xs font-bold hover:bg-white/90 active:scale-[0.97] whitespace-nowrap shrink-0 shadow-sm transition-all cursor-pointer"
           >
             <Plus className="h-4 w-4" />
             Add Personal Event
           </button>
         </div>
-      </section>
+      </motion.section>
 
       {/* Search & Category Filter Controls */}
-      <section
+      <motion.section
+        variants={staggerCardVariants}
         style={{ boxShadow: 'var(--card-shadow)' }}
         className="rounded-3xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] p-4 sm:p-5 space-y-4"
       >
@@ -174,23 +187,33 @@ export function FestivalsScreen({
                 ['ekadashi', 'Ekadashi & Vrat'],
                 ['notes', `My Notes (${notes.length})`],
               ] as const
-            ).map(([val, label]) => (
-              <button
-                key={val}
-                type="button"
-                onClick={() => setTab(val)}
-                className={`px-3.5 py-2 rounded-lg text-xs font-semibold whitespace-nowrap shrink-0 transition-colors cursor-pointer ${
-                  tab === val
-                    ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-xs'
-                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
+            ).map(([val, label]) => {
+              const isActive = tab === val;
+              return (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => setTab(val)}
+                  className={`relative px-3.5 py-2 rounded-lg text-xs font-semibold whitespace-nowrap shrink-0 active:scale-[0.97] transition-colors cursor-pointer ${
+                    isActive
+                      ? 'text-[var(--text-primary)]'
+                      : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  {isActive && (
+                    <motion.span
+                      layoutId="festival-tab-pill"
+                      transition={PATRO_SPRING_SNAPPY}
+                      className="absolute inset-0 rounded-lg bg-[var(--bg-surface)] shadow-xs"
+                    />
+                  )}
+                  <span className="relative z-10">{label}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
-      </section>
+      </motion.section>
 
       {/* Personal Notes Section when My Notes selected or searching */}
       {(tab === 'notes' || (tab === 'all' && filteredNotes.length > 0)) && (
@@ -367,6 +390,6 @@ export function FestivalsScreen({
           })}
         </section>
       )}
-    </div>
+    </motion.div>
   );
 }

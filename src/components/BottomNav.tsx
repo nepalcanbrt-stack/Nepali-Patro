@@ -1,5 +1,7 @@
+import { motion } from 'motion/react';
 import { AppScreen } from '../types/app';
 import { IconThemeId } from '../types/theme';
+import { PATRO_SPRING_SNAPPY } from '../utils/motionVariants';
 import { PatroIconName, PatroThemedIcon } from './NepaliIcons';
 
 interface BottomNavProps {
@@ -33,9 +35,10 @@ export function BottomNav({ activeScreen, iconTheme, onNavigate }: BottomNavProp
         {TABS.map((tab) => {
           const isActive = activeScreen === tab.id;
           return (
-            <button
+            <motion.button
               key={tab.id}
               type="button"
+              whileTap={{ scale: 0.92 }}
               onClick={() => onNavigate(tab.id)}
               aria-current={isActive ? 'page' : undefined}
               className={`min-h-[44px] flex flex-col items-center justify-center gap-0.5 rounded-xl transition-colors duration-150 cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--accent-link)] ${
@@ -44,22 +47,25 @@ export function BottomNav({ activeScreen, iconTheme, onNavigate }: BottomNavProp
                   : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
               }`}
             >
-              <span
-                className={`flex items-center justify-center px-3 py-1 rounded-full transition-colors ${
-                  isActive ? 'bg-[var(--holiday-soft-bg)] text-[var(--accent-secondary)]' : 'bg-transparent'
-                }`}
-              >
+              <span className="relative flex items-center justify-center px-3 py-1 rounded-full">
+                {isActive && (
+                  <motion.span
+                    layoutId="mobile-nav-pill"
+                    transition={PATRO_SPRING_SNAPPY}
+                    className="absolute inset-0 rounded-full bg-[var(--holiday-soft-bg)]"
+                  />
+                )}
                 <PatroThemedIcon
                   name={tab.iconName}
                   iconTheme={iconTheme}
-                  className="h-[19px] w-[19px]"
+                  className="relative z-10 h-[19px] w-[19px]"
                   strokeWidth={isActive ? 2.3 : 1.85}
                 />
               </span>
               <span className="text-[10px] font-semibold tracking-tight leading-none whitespace-nowrap">
                 {tab.label}
               </span>
-            </button>
+            </motion.button>
           );
         })}
       </div>

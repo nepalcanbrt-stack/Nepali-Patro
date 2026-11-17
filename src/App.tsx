@@ -3,8 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, MotionConfig, motion } from 'motion/react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { BottomNav } from './components/BottomNav';
 import { CalendarScreen } from './components/CalendarScreen';
 import { ConverterScreen } from './components/ConverterScreen';
@@ -25,9 +26,11 @@ import { useLiveUpdates } from './hooks/useLiveUpdates';
 import { useNepalTime } from './hooks/useNepalTime';
 import { useNepalWeather } from './hooks/useNepalWeather';
 import { AppNotificationAlert, useNotificationAlerts } from './hooks/useNotificationAlerts';
+import { SWIPE_SCREEN_ORDER, useSwipeNavigation } from './hooks/useSwipeNavigation';
 import { useUserEvents } from './hooks/useUserEvents';
 import { useUserPreferences } from './hooks/useUserPreferences';
 import { AppScreen } from './types/app';
+import { PATRO_SPRING_SNAPPY, screenSlideVariants } from './utils/motionVariants';
 
 export default function App() {
   const { authReady, isVerifiedIdentity } = useFirebase();
@@ -54,6 +57,7 @@ export default function App() {
   });
 
   const [activeScreen, setActiveScreen] = useState<AppScreen>('home');
+  const [navDirection, setNavDirection] = useState<number>(0);
   const [viewYear, setViewYear] = useState<number>(() => nepalTime.todayBs.year);
   const [viewMonth, setViewMonth] = useState<number>(() => nepalTime.todayBs.month);
   const [selectedBs, setSelectedBs] = useState<{ year: number; month: number; day: number }>(() => ({
@@ -73,21 +77,59 @@ export default function App() {
 
   const isLockedOut = Boolean(privateLockEnabled && authReady && !isVerifiedIdentity);
   const effectiveScreen: AppScreen = isLockedOut ? 'login' : activeScreen;
+  const anyModalOpen = noteModalOpen || settingsOpen || notificationsOpen;
 
   const handleNavigate = useCallback(
-    (screen: AppScreen) => {
+    (screen: AppScreen, explicitDirection?: number) => {
       if (isLockedOut && screen !== 'login') {
+        setNavDirection(0);
         setActiveScreen('login');
         return;
       }
-      setActiveScreen(screen);
+      setActiveScreen((prev) => {
+        if (prev === screen) return prev;
+        if (typeof explicitDirection === 'number') {
+          setNavDirection(explicitDirection);
+        } else {
+          const prevIdx = SWIPE_SCREEN_ORDER.indexOf(prev);
+          const nextIdx = SWIPE_SCREEN_ORDER.indexOf(screen);
+          setNavDirection(
+            prevIdx !== -1 && nextIdx !== -1 ? (nextIdx > prevIdx ? 1 : -1) : 0
+          );
+        }
+        return screen;
+      });
       window.scrollTo({ top: 0, behavior: 'smooth' });
     },
     [isLockedOut]
   );
 
+  const { dragOffsetX, preview, swipeHandlers } = useSwipeNavigation({
+    activeScreen: effectiveScreen,
+    disabled: isLockedOut || anyModalOpen || effectiveScreen === 'sanctuary',
+    onNavigate: (screen, direction) => handleNavigate(screen, direction),
+  });
+
+  useEffect(() => {
+    if (isLockedOut || anyModalOpen || effectiveScreen === 'sanctuary') return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!e.altKey || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
+      const idx = SWIPE_SCREEN_ORDER.indexOf(effectiveScreen);
+      if (idx === -1) return;
+      const delta = e.key === 'ArrowRight' ? 1 : -1;
+      const next = SWIPE_SCREEN_ORDER[idx + delta];
+      if (next) {
+        e.preventDefault();
+        handleNavigate(next, delta);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isLockedOut, anyModalOpen, effectiveScreen, handleNavigate]);
+
   const handleOpenTodayInCalendar = useCallback(() => {
     if (isLockedOut) {
+      setNavDirection(0);
       setActiveScreen('login');
       return;
     }
@@ -98,28 +140,28 @@ export default function App() {
       month: nepalTime.todayBs.month,
       day: nepalTime.todayBs.day,
     });
-    setActiveScreen('calendar');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [isLockedOut, nepalTime.todayBs]);
+    handleNavigate('calendar');
+  }, [isLockedOut, nepalTime.todayBs, handleNavigate]);
 
   const handleJumpToBsDate = useCallback(
     (bs: { year: number; month: number; day: number }) => {
       if (isLockedOut) {
+        setNavDirection(0);
         setActiveScreen('login');
         return;
       }
       setViewYear(bs.year);
       setViewMonth(bs.month);
       setSelectedBs(bs);
-      setActiveScreen('calendar');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      handleNavigate('calendar');
     },
-    [isLockedOut]
+    [isLockedOut, handleNavigate]
   );
 
   const handleOpenNoteModal = useCallback(
     (bs?: { year: number; month: number; day: number }) => {
       if (isLockedOut) {
+        setNavDirection(0);
         setActiveScreen('login');
         return;
       }
@@ -170,108 +212,146 @@ export default function App() {
           onOpenLogin={() => handleNavigate('login')}
         />
 
-        {/* Main Content Container (Mobile-First, Expands Cleanly to Multi-Column Desktop) */}
-        <main className="flex-1 w-full max-w-6xl mx-auto px-3.5 sm:px-6 pt-3 pb-24 lg:pb-12">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={effectiveScreen}
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.14, ease: [0.16, 1, 0.3, 1] }}
-            >
-              {effectiveScreen === 'login' && (
-                <LoginScreen
-                  iconTheme={iconTheme}
-                  privateLockEnabled={privateLockEnabled}
-                  onTogglePrivateLock={setPrivateLockEnabled}
-                  onDone={() => {
-                    if (!privateLockEnabled || isVerifiedIdentity) {
-                      setActiveScreen('home');
-                      window.scrollTo({ top: 0, behavior: 'smooth' });
-                    }
-                  }}
-                />
-              )}
-
-              {effectiveScreen === 'home' && (
-                <HomeScreen
-                  nepalTime={nepalTime}
-                  weatherState={weatherState}
-                  notes={notes}
-                  isCloudSynced={isCloudSynced}
-                  preferredRashi={preferredRashi}
-                  iconTheme={iconTheme}
-                  onSelectRashi={(rashiId) => void updatePreferences({ preferredRashi: rashiId })}
-                  onNavigate={handleNavigate}
-                  onJumpToBsDate={handleJumpToBsDate}
-                  onOpenNoteModal={handleOpenNoteModal}
-                  onDeleteNote={(id) => void deleteNote(id)}
-                  onOpenSettings={() => setSettingsOpen(true)}
-                  onOpenLogin={() => handleNavigate('login')}
-                />
-              )}
-
-              {effectiveScreen === 'calendar' && (
-                <CalendarScreen
-                  nepalTime={nepalTime}
-                  selectedBs={selectedBs}
-                  viewYear={viewYear}
-                  viewMonth={viewMonth}
-                  useDevanagariNums={useDevanagariNums}
-                  onToggleDevanagariNums={() =>
-                    void updatePreferences({ useDevanagariNums: !useDevanagariNums })
-                  }
-                  onSelectBs={setSelectedBs}
-                  onChangeMonth={(y, m) => {
-                    setViewYear(y);
-                    setViewMonth(m);
-                  }}
-                  notes={notes}
-                  onOpenNoteModal={handleOpenNoteModal}
-                  onDeleteNote={(id) => void deleteNote(id)}
-                />
-              )}
-
-              {effectiveScreen === 'panchang' && (
-                <PanchangScreen
-                  nepalTime={nepalTime}
-                  preferredRashi={preferredRashi}
-                  iconTheme={iconTheme}
-                  onSelectRashi={(rashiId) => void updatePreferences({ preferredRashi: rashiId })}
-                  onJumpToBsDate={handleJumpToBsDate}
-                />
-              )}
-
-              {effectiveScreen === 'converter' && (
-                <ConverterScreen
-                  nepalTime={nepalTime}
-                  onJumpToBsDate={handleJumpToBsDate}
-                />
-              )}
-
-              {effectiveScreen === 'festivals' && (
-                <FestivalsScreen
-                  nepalTime={nepalTime}
-                  notes={notes}
-                  isCloudSynced={isCloudSynced}
-                  onJumpToBsDate={handleJumpToBsDate}
-                  onOpenNoteModal={handleOpenNoteModal}
-                  onDeleteNote={(id) => void deleteNote(id)}
-                  onOpenLogin={() => handleNavigate('login')}
-                />
-              )}
-
-              {effectiveScreen === 'assistant' && (
-                <PatroAssistantScreen
-                  nepalTime={nepalTime}
-                  preferredRashi={preferredRashi}
-                  iconTheme={iconTheme}
-                  onAddNote={addNote}
-                />
-              )}
-            </motion.div>
+        {/* Main Content Container with Tactile Horizontal Swipe Navigation */}
+        <main
+          {...swipeHandlers}
+          className="relative flex-1 w-full max-w-6xl mx-auto px-3.5 sm:px-6 pt-3 pb-24 lg:pb-12 touch-pan-y overflow-x-clip"
+        >
+          {/* Floating Edge Swipe Direction Indicator */}
+          <AnimatePresence>
+            {preview && (
+              <motion.div
+                key={`swipe-cue-${preview.side}-${preview.screen}`}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{
+                  opacity: Math.max(0.35, preview.progress),
+                  scale: 0.94 + preview.progress * 0.06,
+                }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ duration: 0.12 }}
+                aria-hidden="true"
+                className={`fixed top-1/2 -translate-y-1/2 z-30 pointer-events-none flex items-center gap-1.5 px-3 py-2 rounded-full bg-[var(--accent-primary)] text-white text-xs font-bold shadow-xl border border-white/25 ${
+                  preview.side === 'left' ? 'left-3' : 'right-3'
+                }`}
+              >
+                {preview.side === 'left' && <ChevronLeft className="h-4 w-4 shrink-0" />}
+                <span className="whitespace-nowrap">{preview.label}</span>
+                {preview.side === 'right' && <ChevronRight className="h-4 w-4 shrink-0" />}
+              </motion.div>
+            )}
           </AnimatePresence>
+
+          <motion.div
+            animate={{ x: dragOffsetX }}
+            transition={
+              dragOffsetX === 0
+                ? PATRO_SPRING_SNAPPY
+                : { type: 'tween', duration: 0 }
+            }
+          >
+            <AnimatePresence mode="wait" custom={navDirection}>
+              <motion.div
+                key={effectiveScreen}
+                custom={navDirection}
+                variants={screenSlideVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+              >
+                {effectiveScreen === 'login' && (
+                  <LoginScreen
+                    iconTheme={iconTheme}
+                    privateLockEnabled={privateLockEnabled}
+                    onTogglePrivateLock={setPrivateLockEnabled}
+                    onDone={() => {
+                      if (!privateLockEnabled || isVerifiedIdentity) {
+                        setNavDirection(1);
+                        setActiveScreen('home');
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }
+                    }}
+                  />
+                )}
+
+                {effectiveScreen === 'home' && (
+                  <HomeScreen
+                    nepalTime={nepalTime}
+                    weatherState={weatherState}
+                    notes={notes}
+                    isCloudSynced={isCloudSynced}
+                    preferredRashi={preferredRashi}
+                    iconTheme={iconTheme}
+                    onSelectRashi={(rashiId) => void updatePreferences({ preferredRashi: rashiId })}
+                    onNavigate={handleNavigate}
+                    onJumpToBsDate={handleJumpToBsDate}
+                    onOpenNoteModal={handleOpenNoteModal}
+                    onDeleteNote={(id) => void deleteNote(id)}
+                    onOpenSettings={() => setSettingsOpen(true)}
+                    onOpenLogin={() => handleNavigate('login')}
+                  />
+                )}
+
+                {effectiveScreen === 'calendar' && (
+                  <CalendarScreen
+                    nepalTime={nepalTime}
+                    selectedBs={selectedBs}
+                    viewYear={viewYear}
+                    viewMonth={viewMonth}
+                    useDevanagariNums={useDevanagariNums}
+                    onToggleDevanagariNums={() =>
+                      void updatePreferences({ useDevanagariNums: !useDevanagariNums })
+                    }
+                    onSelectBs={setSelectedBs}
+                    onChangeMonth={(y, m) => {
+                      setViewYear(y);
+                      setViewMonth(m);
+                    }}
+                    notes={notes}
+                    onOpenNoteModal={handleOpenNoteModal}
+                    onDeleteNote={(id) => void deleteNote(id)}
+                  />
+                )}
+
+                {effectiveScreen === 'panchang' && (
+                  <PanchangScreen
+                    nepalTime={nepalTime}
+                    preferredRashi={preferredRashi}
+                    iconTheme={iconTheme}
+                    onSelectRashi={(rashiId) => void updatePreferences({ preferredRashi: rashiId })}
+                    onJumpToBsDate={handleJumpToBsDate}
+                  />
+                )}
+
+                {effectiveScreen === 'converter' && (
+                  <ConverterScreen
+                    nepalTime={nepalTime}
+                    onJumpToBsDate={handleJumpToBsDate}
+                  />
+                )}
+
+                {effectiveScreen === 'festivals' && (
+                  <FestivalsScreen
+                    nepalTime={nepalTime}
+                    notes={notes}
+                    isCloudSynced={isCloudSynced}
+                    onJumpToBsDate={handleJumpToBsDate}
+                    onOpenNoteModal={handleOpenNoteModal}
+                    onDeleteNote={(id) => void deleteNote(id)}
+                    onOpenLogin={() => handleNavigate('login')}
+                  />
+                )}
+
+                {effectiveScreen === 'assistant' && (
+                  <PatroAssistantScreen
+                    nepalTime={nepalTime}
+                    preferredRashi={preferredRashi}
+                    iconTheme={iconTheme}
+                    onAddNote={addNote}
+                  />
+                )}
+              </motion.div>
+            </AnimatePresence>
+          </motion.div>
         </main>
 
         {/* Full-Viewport Three.js 3D Sacred Sanctuary Overlay */}

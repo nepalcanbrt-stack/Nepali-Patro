@@ -394,6 +394,9 @@ async function startServer() {
     }
   });
 
+  const httpServer = http.createServer(app);
+  const hmrDisabled = process.env.DISABLE_HMR === 'true';
+
   if (IS_PROD) {
     const distDir = path.resolve(__dirname, 'dist');
     app.use(express.static(distDir));
@@ -405,13 +408,16 @@ async function startServer() {
     const vite = await createViteServer({
       server: {
         middlewareMode: true,
+        allowedHosts: true,
+        hmr: !hmrDisabled,
+        ws: { server: httpServer },
+        watch: hmrDisabled ? null : undefined,
       },
       appType: 'spa',
     });
     app.use(vite.middlewares);
   }
 
-  const httpServer = http.createServer(app);
   const wss = new WebSocketServer({
     noServer: true,
     maxPayload: 256 * 1024,
