@@ -91,7 +91,7 @@ define(['./workbox-7b16fee0'], (function (workbox) { 'use strict';
     "revision": "d8d88b64a7d7c0c10265dbe0f8a4e469"
   }, {
     "url": "index.html",
-    "revision": "f614ade4b9f005b0b6700763e53e9320"
+    "revision": "c791e1155068a4c4ec1faa391bece9a4"
   }, {
     "url": "icon.svg",
     "revision": "4ac7b556dfc944c981b4b42b65a90783"
@@ -103,6 +103,9 @@ define(['./workbox-7b16fee0'], (function (workbox) { 'use strict';
     "revision": "43a60f29c37e143cbf2e0075e23bd0a5"
   }, {
     "url": "assets/workbox-window.prod.es5-Bd17z0YL.js",
+    "revision": null
+  }, {
+    "url": "assets/web-pPlhO8sE.js",
     "revision": null
   }, {
     "url": "assets/timer-gOx6T0Xp.js",
@@ -123,16 +126,13 @@ define(['./workbox-7b16fee0'], (function (workbox) { 'use strict';
     "url": "assets/jsx-dev-runtime-Dm_E8pXv.js",
     "revision": null
   }, {
-    "url": "assets/index-Dd6o9Js3.css",
+    "url": "assets/index-Cmk7AEhg.css",
     "revision": null
   }, {
-    "url": "assets/index-C71RD0mC.js",
+    "url": "assets/index-CcDltfz_.js",
     "revision": null
   }, {
     "url": "assets/firebase-vendor-CASAcpI_.js",
-    "revision": null
-  }, {
-    "url": "assets/check-xEoEkR6b.js",
     "revision": null
   }, {
     "url": "assets/calendar-K1eutAo0.js",
@@ -141,31 +141,31 @@ define(['./workbox-7b16fee0'], (function (workbox) { 'use strict';
     "url": "assets/arrow-left-CQc-Cd2E.js",
     "revision": null
   }, {
-    "url": "assets/SettingsModal-Bpw4nKVk.js",
+    "url": "assets/SettingsModal-D5FwPxoi.js",
     "revision": null
   }, {
-    "url": "assets/Patro3DSceneScreen-BVNVTqUd.js",
+    "url": "assets/Patro3DSceneScreen-B_lcjOhT.js",
     "revision": null
   }, {
-    "url": "assets/PanchangScreen-BRNRqn2N.js",
+    "url": "assets/PanchangScreen-CDZ5mwOr.js",
     "revision": null
   }, {
-    "url": "assets/NotificationCenterModal-BuHyzXfY.js",
+    "url": "assets/NotificationCenterModal-BKyVX11r.js",
     "revision": null
   }, {
-    "url": "assets/NoteModal-CQuwljQE.js",
+    "url": "assets/NoteModal-C1kNMo16.js",
     "revision": null
   }, {
-    "url": "assets/LoginScreen-BBdkchHd.js",
+    "url": "assets/LoginScreen-DvuNz7F_.js",
     "revision": null
   }, {
-    "url": "assets/FestivalsScreen-DFddyUgR.js",
+    "url": "assets/FestivalsScreen-GINNUZOB.js",
     "revision": null
   }, {
-    "url": "assets/ConverterScreen-D6H-etNw.js",
+    "url": "assets/ConverterScreen-DxBRMSTs.js",
     "revision": null
   }, {
-    "url": "assets/CalendarScreen-CB668p5L.js",
+    "url": "assets/CalendarScreen-DBVWJAeb.js",
     "revision": null
   }, {
     "url": "apple-touch-icon.png",
