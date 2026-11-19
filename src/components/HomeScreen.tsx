@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { motion } from 'motion/react';
 import {
+  BellRing,
   ChevronRight,
   Clock,
   Cloud,
@@ -64,6 +65,7 @@ interface HomeScreenProps {
   onOpenNoteModal: (bs?: { year: number; month: number; day: number }) => void;
   onDeleteNote: (id: string) => void;
   onOpenSettings: () => void;
+  onOpenNotifications: () => void;
   onOpenLogin: () => void;
 }
 
@@ -86,6 +88,7 @@ export function HomeScreen({
   onOpenNoteModal,
   onDeleteNote,
   onOpenSettings,
+  onOpenNotifications,
   onOpenLogin,
 }: HomeScreenProps) {
   const { user, authBusy, authError, isVerifiedIdentity, signOutUser, clearAuthError } = useFirebase();
@@ -296,7 +299,7 @@ export function HomeScreen({
                   className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-md border border-white/25 text-xs font-semibold text-white whitespace-nowrap shrink-0 transition-colors cursor-pointer"
                 >
                   <LogIn className="h-3.5 w-3.5" />
-                  Sign In (Gmail / Phone)
+                  Sign In (Gmail)
                 </button>
               )}
 
@@ -445,24 +448,24 @@ export function HomeScreen({
           ))}
         </motion.div>
 
-        {/* Spotlight Interactive Cards: Live Voice/Search/Maps + 3D Sanctuary */}
+        {/* Spotlight Interactive Cards: Live Alerts/Sound + 3D Sanctuary */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
           <button
             type="button"
-            onClick={() => onNavigate('assistant')}
+            onClick={onOpenNotifications}
             style={{ boxShadow: 'var(--card-shadow)' }}
             className="group flex items-center justify-between gap-3 p-4 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--border-accent)] text-left transition-all cursor-pointer"
           >
             <div className="flex items-center gap-3 min-w-0">
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--accent-soft-bg)] text-[var(--accent-soft-text)] border border-[var(--border-accent)]">
-                <PatroThemedIcon name="assistant" iconTheme={iconTheme} className="h-5 w-5" />
+                <BellRing className="h-5 w-5" />
               </span>
               <div className="min-w-0">
                 <p className="text-sm font-bold text-[var(--text-primary)] truncate">
-                  Voice Guru, Live Search &amp; Temple Maps
+                  Day Alerts, Sound &amp; Auto-Refresh
                 </p>
                 <p className="text-xs text-[var(--text-muted)] truncate">
-                  Real-time voice chat, Nepal updates &amp; nearby sacred sites
+                  10s–60s live refresh, chime tones &amp; weather/festival alerts
                 </p>
               </div>
             </div>
@@ -757,13 +760,13 @@ export function HomeScreen({
                     Your Personal Notes {isCloudSynced ? '· Synced to Cloud' : '· Saved Locally'}
                   </h3>
                   {!isVerifiedIdentity && (
-                    <button
-                      type="button"
-                      onClick={onOpenLogin}
-                      className="text-[11px] font-semibold text-[var(--accent-link)] hover:underline cursor-pointer"
-                    >
-                      Sign in (Gmail / Phone) to sync
-                    </button>
+                      <button
+                        type="button"
+                        onClick={onOpenLogin}
+                        className="text-[11px] font-semibold text-[var(--accent-link)] hover:underline cursor-pointer"
+                      >
+                        Sign in with Gmail to sync
+                      </button>
                   )}
                 </div>
                 <div className="space-y-2">

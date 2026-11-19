@@ -1,14 +1,11 @@
+import { memo } from 'react';
 import { motion } from 'motion/react';
 import { Bell, ChevronRight, Settings } from 'lucide-react';
 import { useFirebase } from '../contexts/FirebaseContext';
 import { NepalTimeState } from '../hooks/useNepalTime';
 import { AppScreen } from '../types/app';
 import { IconThemeId } from '../types/theme';
-import {
-  formatAdDateShort,
-  formatBsDateNe,
-  getWeekdayNameNe,
-} from '../utils/nepaliDate';
+import { toDevanagari } from '../utils/nepaliDate';
 import { PATRO_SPRING_SNAPPY } from '../utils/motionVariants';
 import { PatroThemedIcon } from './NepaliIcons';
 
@@ -31,11 +28,10 @@ const NAV_ITEMS: Array<{ id: AppScreen; labelNe: string; labelEn: string }> = [
   { id: 'panchang', labelNe: 'पञ्चाङ्ग', labelEn: 'Panchang' },
   { id: 'converter', labelNe: 'रूपान्तरण', labelEn: 'Converter' },
   { id: 'festivals', labelNe: 'चाडपर्व', labelEn: 'Festivals' },
-  { id: 'assistant', labelNe: 'ज्योतिष AI', labelEn: 'AI Guide' },
   { id: 'sanctuary', labelNe: '३डी मन्दिर', labelEn: '3D Stupa' },
 ];
 
-export function StickyDateBar({
+export const StickyDateBar = memo(function StickyDateBar({
   nepalTime,
   activeScreen,
   iconTheme,
@@ -48,25 +44,23 @@ export function StickyDateBar({
   onOpenLogin,
 }: StickyDateBarProps) {
   const { user, isVerifiedIdentity } = useFirebase();
-  const { todayBs, todayAd, panchang, timeFormatted } = nepalTime;
-  const bsDateText = formatBsDateNe(todayBs);
-  const weekdayNe = getWeekdayNameNe(todayBs.weekday);
-  const adDateText = formatAdDateShort(todayAd);
+  const { todayBs } = nepalTime;
+  const bsDayText = toDevanagari(todayBs.day);
 
   return (
     <header className="sticky top-0 z-40 w-full px-3 pt-[max(0.625rem,env(safe-area-inset-top))] pb-1.5 sm:px-6 pointer-events-none">
       <div className="mx-auto max-w-6xl flex items-center justify-between gap-2 sm:gap-3 pointer-events-auto">
-        {/* Floating Themed Date Pill — Always Visible While Scrolling Across All Screens */}
+        {/* Floating Themed Date Pill — Always Displays Only Today's Nepali BS Day Number */}
         <button
           type="button"
           onClick={onOpenTodayInCalendar}
-          aria-label={`Today is ${bsDateText}, ${weekdayNe}, ${panchang.fullTithiNe}, ${adDateText}. Tap to open full calendar.`}
+          aria-label={`Today's Nepali date is ${bsDayText}. Tap to open full calendar.`}
           style={{
             backgroundImage: 'var(--pill-bg)',
             borderColor: 'var(--pill-border)',
             boxShadow: 'var(--card-shadow)',
           }}
-          className="group flex-1 lg:flex-initial lg:min-w-[380px] min-w-0 flex items-center justify-between gap-2 sm:gap-3 px-3 sm:px-3.5 py-2 rounded-full backdrop-blur-md border hover:border-[var(--border-accent)] active:scale-[0.99] transition-all duration-200 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-link)]"
+          className="group min-w-0 flex items-center justify-between gap-2.5 sm:gap-3 px-3 sm:px-3.5 py-2 rounded-full backdrop-blur-md border hover:border-[var(--border-accent)] active:scale-[0.99] transition-all duration-200 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-link)]"
         >
           <div className="flex items-center gap-2.5 min-w-0">
             <span
@@ -79,40 +73,17 @@ export function StickyDateBar({
               <PatroThemedIcon name="calendar" iconTheme={iconTheme} className="h-4.5 w-4.5" strokeWidth={2.1} />
             </span>
 
-            <div className="min-w-0 text-left">
-              <div className="flex items-baseline gap-2 flex-wrap">
-                <span className="font-devanagari text-base sm:text-lg font-bold tracking-tight text-[var(--text-primary)] leading-tight whitespace-nowrap">
-                  {bsDateText}
-                </span>
-                <span className="hidden sm:inline text-xs font-medium text-[var(--pill-sub)] whitespace-nowrap">
-                  {adDateText}
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5 text-[11px] sm:text-xs text-[var(--text-secondary)] truncate">
-                <span className="font-devanagari font-semibold text-[var(--accent-secondary)] whitespace-nowrap">
-                  {weekdayNe}
-                </span>
-                <span aria-hidden="true" className="text-[var(--text-muted)]">·</span>
-                <span className="font-devanagari truncate">{panchang.fullTithiNe}</span>
-                <span className="sm:hidden text-[var(--text-muted)]" aria-hidden="true">·</span>
-                <span className="sm:hidden tabular-nums font-medium text-[var(--text-secondary)] whitespace-nowrap">
-                  {adDateText}
-                </span>
-              </div>
-            </div>
+            <span className="font-devanagari text-lg sm:text-xl font-extrabold tracking-tight text-[var(--text-primary)] leading-none tabular-nums whitespace-nowrap">
+              {bsDayText}
+            </span>
           </div>
 
-          <div className="flex items-center gap-1.5 shrink-0 pl-1">
-            <span className="hidden sm:inline-block text-[11px] font-medium tabular-nums text-[var(--pill-sub)]">
-              {timeFormatted} NST
-            </span>
-            <span
-              style={{ backgroundColor: 'var(--pill-icon-bg)' }}
-              className="flex h-7 w-7 items-center justify-center rounded-full text-[var(--pill-sub)] group-hover:translate-x-0.5 transition-transform"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </span>
-          </div>
+          <span
+            style={{ backgroundColor: 'var(--pill-icon-bg)' }}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--pill-sub)] group-hover:translate-x-0.5 transition-transform"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </span>
         </button>
 
         {/* Desktop Integrated Navigation Rail + Account & Settings Triggers */}
@@ -151,8 +122,8 @@ export function StickyDateBar({
           <button
             type="button"
             onClick={onOpenLogin}
-            aria-label={isVerifiedIdentity ? 'Manage private account' : 'Sign in with Gmail or Phone'}
-            title={isVerifiedIdentity ? `Signed in (${user?.email || user?.phoneNumber})` : 'Private Sign In'}
+            aria-label={isVerifiedIdentity ? 'Manage Gmail account' : 'Sign in with Gmail'}
+            title={isVerifiedIdentity ? `Signed in (${user?.email})` : 'Gmail Sign-In'}
             style={{ boxShadow: 'var(--card-shadow)' }}
             className={`min-h-[44px] min-w-[44px] px-2.5 flex items-center justify-center gap-1.5 rounded-full backdrop-blur-md border transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-link)] ${
               activeScreen === 'login'
@@ -164,7 +135,7 @@ export function StickyDateBar({
           >
             <PatroThemedIcon name="lock" iconTheme={iconTheme} className="h-4.5 w-4.5 shrink-0" />
             <span className="hidden md:inline text-xs font-semibold whitespace-nowrap">
-              {isVerifiedIdentity ? 'Account' : 'Sign In'}
+              {isVerifiedIdentity ? 'Account' : 'Gmail Sign In'}
             </span>
           </button>
 
@@ -206,4 +177,4 @@ export function StickyDateBar({
       </div>
     </header>
   );
-}
+});

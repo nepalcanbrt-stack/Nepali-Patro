@@ -17,8 +17,14 @@ export interface NepalTimeState {
   minutes: number;
 }
 
-export function useNepalTime(): NepalTimeState {
+export function useNepalTime(refreshSignal = 0): NepalTimeState {
   const [tick, setTick] = useState<number>(() => Date.now());
+
+  useEffect(() => {
+    if (refreshSignal > 0) {
+      setTick(Date.now());
+    }
+  }, [refreshSignal]);
 
   useEffect(() => {
     let midnightTimeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -36,7 +42,9 @@ export function useNepalTime(): NepalTimeState {
 
     // Update clock every 30s so time stays fresh and catches any drift
     minuteIntervalId = setInterval(() => {
-      setTick(Date.now());
+      if (document.visibilityState === 'visible') {
+        setTick(Date.now());
+      }
     }, 30_000);
 
     const handleVisibility = () => {

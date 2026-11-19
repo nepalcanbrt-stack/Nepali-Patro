@@ -11,10 +11,18 @@ import {
   DownloadCloud,
   RefreshCw,
   Sparkles,
+  Timer,
   Trash2,
+  Volume2,
+  VolumeX,
   X,
 } from 'lucide-react';
-import { LiveStreamStatus, LiveVersionInfo } from '../hooks/useLiveUpdates';
+import {
+  AUTO_REFRESH_OPTIONS,
+  AutoRefreshIntervalSec,
+  LiveStreamStatus,
+  LiveVersionInfo,
+} from '../hooks/useLiveUpdates';
 import { AppNotificationAlert, NotificationPrefs } from '../hooks/useNotificationAlerts';
 import {
   modalBackdropVariants,
@@ -34,8 +42,11 @@ interface NotificationCenterModalProps {
   isCheckingUpdates: boolean;
   isNativeCapacitor: boolean;
   streamStatus: LiveStreamStatus;
+  autoRefreshIntervalSec: AutoRefreshIntervalSec;
+  onChangeAutoRefresh: (sec: AutoRefreshIntervalSec) => void;
   onUpdatePref: <K extends keyof NotificationPrefs>(key: K, value: NotificationPrefs[K]) => void;
   onRequestPermission: () => Promise<NotificationPermission | 'unsupported'>;
+  onPlayTestSound: () => Promise<boolean>;
   onSendTestNotification: () => Promise<NotificationPermission | 'unsupported'>;
   onCheckForUpdates: () => Promise<boolean>;
   onApplyLiveUpdate: () => Promise<void>;
@@ -58,8 +69,11 @@ export function NotificationCenterModal({
   isCheckingUpdates,
   isNativeCapacitor,
   streamStatus,
+  autoRefreshIntervalSec,
+  onChangeAutoRefresh,
   onUpdatePref,
   onRequestPermission,
+  onPlayTestSound,
   onSendTestNotification,
   onCheckForUpdates,
   onApplyLiveUpdate,
@@ -84,7 +98,7 @@ export function NotificationCenterModal({
     if (alert.category === 'update') return DownloadCloud;
     if (alert.category === 'weather') return alert.severity === 'info' ? CloudRain : AlertTriangle;
     if (alert.category === 'festival') return Sparkles;
-    if (alert.category === 'note') return Calendar;
+    if (alert.category === 'note' || alert.category === 'day') return Calendar;
     return Bell;
   };
 
@@ -141,7 +155,7 @@ export function NotificationCenterModal({
                 </span>
                 <div>
                   <h2 id="notification-center-title" className="text-lg font-bold text-[var(--text-primary)]">
-                    Alerts &amp; Live Updates{' '}
+                    Alerts, Sound &amp; Auto-Refresh{' '}
                     <span className="font-devanagari text-[var(--accent-secondary)]">· सूचना</span>
                   </h2>
                   <p className="text-xs text-[var(--text-muted)]">
@@ -164,10 +178,10 @@ export function NotificationCenterModal({
             </div>
 
             <div className="p-5 space-y-5">
-              {/* Live Deploy & App Update Card */}
+              {/* Live Deploy & Auto-Refresh Interval Card */}
               <section
-                aria-label="Live update status"
-                className={`p-4 rounded-2xl border ${
+                aria-label="Live update and auto-refresh controls"
+                className={`p-4 rounded-2xl border space-y-3.5 ${
                   hasUpdateAvailable
                     ? 'bg-[#FFFBEB] border-[#F59E0B]/60 dark:bg-amber-950/40 dark:border-amber-600/50'
                     : 'bg-[var(--bg-surface-soft)] border-[var(--border-subtle)]'
@@ -205,64 +219,109 @@ export function NotificationCenterModal({
                       Update Now
                     </button>
                   ) : (
-                    !isNativeCapacitor && (
-                      <button
-                        type="button"
-                        onClick={() => void onCheckForUpdates()}
-                        disabled={isCheckingUpdates}
-                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--border-accent)] text-xs font-semibold text-[var(--text-primary)] whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-60"
-                      >
-                        <RefreshCw
-                          className={`h-3.5 w-3.5 ${isCheckingUpdates ? 'animate-spin' : ''}`}
-                        />
-                        Check Live
-                      </button>
-                    )
+                    <button
+                      type="button"
+                      onClick={() => void onCheckForUpdates()}
+                      disabled={isCheckingUpdates}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--border-accent)] text-xs font-semibold text-[var(--text-primary)] whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-60"
+                    >
+                      <RefreshCw
+                        className={`h-3.5 w-3.5 ${isCheckingUpdates ? 'animate-spin' : ''}`}
+                      />
+                      Refresh Now
+                    </button>
                   )}
+                </div>
+
+                {/* Auto Refresh Speed Picker (10s / 15s / 30s / 60s / Off) */}
+                <div className="pt-3 border-t border-[var(--border-soft)] space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5">
+                      <Timer className="h-3.5 w-3.5 text-[var(--accent-link)]" />
+                      Auto Refresh Interval
+                    </span>
+                    <span className="text-[11px] font-semibold text-[var(--text-muted)]">
+                      {autoRefreshIntervalSec === 0 ? 'Manual only' : `Every ${autoRefreshIntervalSec}s`}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-5 gap-1.5">
+                    {AUTO_REFRESH_OPTIONS.map((opt) => {
+                      const active = autoRefreshIntervalSec === opt.value;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => onChangeAutoRefresh(opt.value)}
+                          aria-pressed={active}
+                          className={`h-9 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                            active
+                              ? 'bg-[var(--accent-primary)] border-[var(--accent-primary)] text-white shadow-xs'
+                              : 'bg-[var(--bg-surface)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--border-accent)]'
+                          }`}
+                        >
+                          {opt.shortLabel}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </section>
 
-              {/* Device Notification Permission & Test Trigger */}
+              {/* Notification Sound, Day Bar & Device Permission */}
               <section className="p-4 rounded-2xl bg-[var(--bg-surface-soft)] border border-[var(--border-subtle)] space-y-3">
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-sm font-bold text-[var(--text-primary)]">
-                      Device Notification Alerts
+                    <p className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-1.5">
+                      {prefs.soundEnabled ? (
+                        <Volume2 className="h-4 w-4 text-[var(--accent-secondary)]" />
+                      ) : (
+                        <VolumeX className="h-4 w-4 text-[var(--text-muted)]" />
+                      )}
+                      Auto Notification Sound &amp; Popups
                     </p>
                     <p className="text-xs text-[var(--text-muted)]">
                       {permission === 'granted'
-                        ? 'Allowed on this device for weather, festivals & live updates'
+                        ? 'Temple chime & OS alerts active'
                         : permission === 'denied'
-                        ? 'Blocked in browser settings — in-app alerts remain active'
-                        : permission === 'unsupported'
-                        ? 'OS push unavailable here — in-app toast alerts active'
-                        : 'Allow device notifications for instant weather & reminder alerts'}
+                        ? 'OS popups blocked — chime & in-app alerts active'
+                        : 'Play chime automatically when new alerts trigger'}
                     </p>
                   </div>
 
-                  {permission === 'default' ? (
+                  <div className="flex items-center gap-1.5 shrink-0">
                     <button
                       type="button"
-                      onClick={() => void onRequestPermission()}
-                      className="px-3.5 py-2 rounded-xl bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-xs font-bold text-white whitespace-nowrap shrink-0 cursor-pointer"
+                      onClick={() => void onPlayTestSound()}
+                      className="px-3 py-2 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--border-accent)] text-xs font-semibold text-[var(--text-primary)] whitespace-nowrap cursor-pointer"
                     >
-                      Enable
+                      Test Sound
                     </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => void onSendTestNotification()}
-                      className="px-3.5 py-2 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--border-accent)] text-xs font-semibold text-[var(--text-primary)] whitespace-nowrap shrink-0 cursor-pointer"
-                    >
-                      Test Alert
-                    </button>
-                  )}
+                    {permission === 'default' ? (
+                      <button
+                        type="button"
+                        onClick={() => void onRequestPermission()}
+                        className="px-3 py-2 rounded-xl bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-xs font-bold text-white whitespace-nowrap cursor-pointer"
+                      >
+                        Enable
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => void onSendTestNotification()}
+                        className="px-3 py-2 rounded-xl bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-xs font-bold text-white whitespace-nowrap cursor-pointer"
+                      >
+                        Test Alert
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Alert Category Toggles */}
                 <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[var(--border-soft)]">
                   {(
                     [
+                      { key: 'dayNotificationEnabled', label: 'Day Notification Bar' },
+                      { key: 'soundEnabled', label: 'Auto Alert Sound' },
                       { key: 'weatherAlerts', label: 'Weather (38°C+ / <10°C / Rain)' },
                       { key: 'festivalAlerts', label: 'Festivals & Ekadashi' },
                       { key: 'noteReminders', label: 'Personal Notes & Puja' },
@@ -326,7 +385,7 @@ export function NotificationCenterModal({
                       No pending alerts right now
                     </p>
                     <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                      Weather thresholds, today’s Ekadashi/festivals, scheduled notes, and live deploys appear here automatically.
+                      Day summaries, weather thresholds, Ekadashi/festivals, scheduled notes, and live deploys appear here automatically.
                     </p>
                   </div>
                 ) : (

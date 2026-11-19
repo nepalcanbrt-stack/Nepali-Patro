@@ -4,8 +4,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  HeartHandshake,
   Moon,
   ShieldAlert,
+  Sparkles,
   Star,
   Sun,
   Sunrise,
@@ -82,6 +84,57 @@ export function PanchangScreen({
   };
 
   const { panchang, ad, nepalSambat, subhaSaait } = details;
+
+  const panchangInsight = useMemo(() => {
+    const moonRashiId = panchang.chandraRashiEn.split(' ')[0].toLowerCase();
+    const sameSign = moonRashiId === activeRashi.id;
+    const elements: Record<string, 'Fire' | 'Earth' | 'Air' | 'Water'> = {
+      mesha: 'Fire',
+      simha: 'Fire',
+      dhanu: 'Fire',
+      vrishabha: 'Earth',
+      kanya: 'Earth',
+      makara: 'Earth',
+      mithuna: 'Air',
+      tula: 'Air',
+      kumbha: 'Air',
+      karkata: 'Water',
+      vrishchika: 'Water',
+      meena: 'Water',
+    };
+    const rashiEl = elements[activeRashi.id] ?? 'Fire';
+    const moonEl = elements[moonRashiId] ?? 'Earth';
+    const harmoniousPair =
+      (rashiEl === 'Fire' && moonEl === 'Air') ||
+      (rashiEl === 'Air' && moonEl === 'Fire') ||
+      (rashiEl === 'Earth' && moonEl === 'Water') ||
+      (rashiEl === 'Water' && moonEl === 'Earth');
+
+    const baseScore = sameSign
+      ? 95
+      : rashiEl === moonEl
+      ? 89
+      : harmoniousPair
+      ? 84
+      : 74;
+    const bonus = panchang.isAuspiciousYoga ? 3 : -2;
+    const score = Math.min(98, Math.max(68, baseScore + bonus));
+
+    const spiritualTipEn =
+      panchang.tithiNumber === 11 || panchang.tithiNumber === 26
+        ? `Today's ${panchang.fullTithiNe} (${panchang.nakshatraEn}) favors quiet fasting, mantra reflection, and mindful generosity.`
+        : panchang.pakshaEn === 'Shukla Paksha'
+        ? `${panchang.nakshatraEn} Nakshatra in waxing Shukla Paksha supports fresh plans, study, and gratitude rituals at sunrise.`
+        : `${panchang.nakshatraEn} Nakshatra in Krishna Paksha invites organizing pending work, releasing clutter, and calm evening rest.`;
+
+    const harmonyTipEn = sameSign
+      ? `Chandra transits your ${activeRashi.nameNe} sign directly — strong emotional clarity and confidence (${activeRashi.luckyDirection}).`
+      : rashiEl === moonEl || harmoniousPair
+      ? `${moonEl} Moon resonates smoothly with your ${rashiEl} ${activeRashi.nameEn.split(' ')[0]} nature; prioritize ${activeRashi.focusArea.toLowerCase()}.`
+      : `Balanced pacing works best as ${moonEl} Moon meets ${rashiEl}; lean on ${activeRashi.luckyTime} for important talks.`;
+
+    return { score, rashiEl, moonEl, spiritualTipEn, harmonyTipEn };
+  }, [panchang, activeRashi]);
 
   return (
     <motion.div
@@ -393,6 +446,43 @@ export function PanchangScreen({
           </motion.div>
         </motion.section>
       </div>
+
+      {/* OFFLINE PANCHANG INSIGHT & RASHI COMPATIBILITY */}
+      <motion.section
+        variants={staggerCardVariants}
+        style={{ boxShadow: 'var(--card-shadow)' }}
+        className="rounded-3xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] p-5 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-4"
+      >
+        <div className="p-4 rounded-2xl bg-[var(--bg-surface-soft)] border border-[var(--border-soft)] space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-1.5">
+              <Sparkles className="h-4 w-4 text-[var(--accent-secondary)]" />
+              Panchang Daily Insight · पञ्चाङ्ग सार
+            </h2>
+            <span className="text-[11px] font-semibold text-[var(--accent-soft-text)]">
+              {panchang.yogaNe} योग
+            </span>
+          </div>
+          <p className="text-xs sm:text-[13px] text-[var(--text-secondary)] leading-relaxed">
+            {panchangInsight.spiritualTipEn}
+          </p>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-[var(--bg-surface-soft)] border border-[var(--border-accent)] space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-1.5">
+              <HeartHandshake className="h-4 w-4 text-[var(--accent-link)]" />
+              Rashi Compatibility · चन्द्र–राशि मिलान
+            </h2>
+            <span className="px-2.5 py-0.5 rounded-full bg-[var(--accent-soft-bg)] text-xs font-extrabold text-[var(--accent-soft-text)] tabular-nums">
+              {panchangInsight.score}% Match
+            </span>
+          </div>
+          <p className="text-xs sm:text-[13px] text-[var(--text-secondary)] leading-relaxed">
+            {panchangInsight.harmonyTipEn}
+          </p>
+        </div>
+      </motion.section>
 
       {/* DAILY RASHIFAL (12 ZODIAC SIGNS) */}
       <motion.section

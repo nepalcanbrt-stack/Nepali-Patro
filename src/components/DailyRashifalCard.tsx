@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { ChevronRight, Compass, RefreshCw, Sparkles, Star } from 'lucide-react';
 import { BsDate, formatBsDateNe } from '../utils/nepaliDate';
@@ -15,7 +15,7 @@ interface DailyRashifalCardProps {
   onViewAllRashis: () => void;
 }
 
-export function DailyRashifalCard({
+export const DailyRashifalCard = memo(function DailyRashifalCard({
   preferredRashi,
   todayAd,
   todayBs,
@@ -204,4 +204,4 @@ export function DailyRashifalCard({
       </div>
     </section>
   );
-}
+});

@@ -5,7 +5,6 @@ import {
   CalendarDays,
   Compass,
   Home,
-  Mic,
   PlusCircle,
   ShieldCheck,
   Sparkles,
@@ -275,7 +274,6 @@ export type PatroIconName =
   | 'kalash'
   | 'note'
   | 'lock'
-  | 'assistant'
   | 'sanctuary';
 
 export function PatroThemedIcon({
@@ -307,8 +305,6 @@ export function PatroThemedIcon({
         return <NepaliDhakaMotifIcon className={className} strokeWidth={strokeWidth} />;
       case 'lock':
         return <NepaliAccountLockIcon className={className} strokeWidth={strokeWidth} />;
-      case 'assistant':
-        return <NepaliJyotishAiIcon className={className} strokeWidth={strokeWidth} />;
       case 'sanctuary':
         return <NepaliStupaSanctuaryIcon className={className} strokeWidth={strokeWidth} />;
     }
@@ -331,8 +327,6 @@ export function PatroThemedIcon({
       return <PlusCircle className={className} strokeWidth={strokeWidth} />;
     case 'lock':
       return <UserCheck className={className} strokeWidth={strokeWidth} />;
-    case 'assistant':
-      return <Mic className={className} strokeWidth={strokeWidth} />;
     case 'sanctuary':
       return <Box className={className} strokeWidth={strokeWidth} />;
   }

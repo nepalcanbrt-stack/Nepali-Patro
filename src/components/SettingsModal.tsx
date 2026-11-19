@@ -9,10 +9,13 @@ import {
   LogOut,
   Palette,
   Sparkles,
+  Timer,
   Unlock,
+  Volume2,
   X,
 } from 'lucide-react';
 import { useFirebase } from '../contexts/FirebaseContext';
+import { AUTO_REFRESH_OPTIONS, AutoRefreshIntervalSec } from '../hooks/useLiveUpdates';
 import { IconThemeId, THEME_PALETTES, ThemeId } from '../types/theme';
 import {
   modalBackdropVariants,
@@ -31,11 +34,18 @@ interface SettingsModalProps {
   privateLockEnabled: boolean;
   unreadAlertsCount: number;
   hasLiveUpdate: boolean;
+  autoRefreshIntervalSec: AutoRefreshIntervalSec;
+  soundEnabled: boolean;
+  dayNotificationEnabled: boolean;
   onSelectTheme: (theme: ThemeId) => void;
   onSelectIconTheme: (iconTheme: IconThemeId) => void;
   onToggleDevanagariNums: () => void;
   onSelectRashi: (rashiId: string) => void;
   onTogglePrivateLock: (enabled: boolean) => void;
+  onChangeAutoRefresh: (sec: AutoRefreshIntervalSec) => void;
+  onToggleSound: () => void;
+  onToggleDayNotification: () => void;
+  onPlayTestSound: () => Promise<boolean>;
   onOpenNotifications: () => void;
   onOpenLogin: () => void;
   onClose: () => void;
@@ -65,11 +75,18 @@ export function SettingsModal({
   privateLockEnabled,
   unreadAlertsCount,
   hasLiveUpdate,
+  autoRefreshIntervalSec,
+  soundEnabled,
+  dayNotificationEnabled,
   onSelectTheme,
   onSelectIconTheme,
   onToggleDevanagariNums,
   onSelectRashi,
   onTogglePrivateLock,
+  onChangeAutoRefresh,
+  onToggleSound,
+  onToggleDayNotification,
+  onPlayTestSound,
   onOpenNotifications,
   onOpenLogin,
   onClose,
@@ -142,7 +159,7 @@ export function SettingsModal({
                     App Settings <span className="font-devanagari text-[var(--accent-secondary)]">· सेटिङ्स</span>
                   </h2>
                   <p className="text-xs text-[var(--text-muted)]">
-                    Nepali icon style, color themes, security lock & sync
+                    Themes, auto-refresh, notification sound &amp; Gmail sync
                   </p>
                 </div>
               </div>
@@ -159,8 +176,105 @@ export function SettingsModal({
             </div>
 
             <div className="p-5 space-y-6">
+              {/* Auto-Refresh, Day Notification Bar & Sound */}
+              <section className="space-y-3">
+                <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-1.5">
+                  <Timer className="h-4 w-4 text-[var(--accent-secondary)]" />
+                  Auto Refresh &amp; Notification Sound
+                </h3>
+
+                <div className="p-3.5 rounded-2xl bg-[var(--bg-surface-soft)] border border-[var(--border-subtle)] space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-semibold text-[var(--text-primary)]">
+                      Live Auto-Refresh Rate
+                    </p>
+                    <span className="text-[11px] font-semibold text-[var(--text-muted)]">
+                      {autoRefreshIntervalSec === 0 ? 'Manual' : `Every ${autoRefreshIntervalSec}s`}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-5 gap-1.5">
+                    {AUTO_REFRESH_OPTIONS.map((opt) => {
+                      const active = autoRefreshIntervalSec === opt.value;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => onChangeAutoRefresh(opt.value)}
+                          aria-pressed={active}
+                          className={`h-9 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                            active
+                              ? 'bg-[var(--accent-primary)] border-[var(--accent-primary)] text-white shadow-xs'
+                              : 'bg-[var(--bg-surface)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--border-accent)]'
+                          }`}
+                        >
+                          {opt.shortLabel}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-[var(--bg-surface-soft)] border border-[var(--border-subtle)]">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-[var(--text-primary)] flex items-center gap-1.5">
+                      <Volume2 className="h-4 w-4 text-[var(--accent-secondary)] shrink-0" />
+                      Auto Notification Sound
+                    </p>
+                    <p className="text-xs text-[var(--text-muted)]">
+                      Play temple chime automatically for live alerts &amp; reminders
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => void onPlayTestSound()}
+                      className="px-2.5 py-2 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
+                    >
+                      Test
+                    </button>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={soundEnabled}
+                      onClick={onToggleSound}
+                      className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap cursor-pointer ${
+                        soundEnabled
+                          ? 'bg-[var(--accent-primary)] text-white'
+                          : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border border-[var(--border-subtle)]'
+                      }`}
+                    >
+                      {soundEnabled ? 'On' : 'Muted'}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-[var(--bg-surface-soft)] border border-[var(--border-subtle)]">
+                  <div>
+                    <p className="text-sm font-semibold text-[var(--text-primary)]">
+                      Day Notification Bar
+                    </p>
+                    <p className="text-xs text-[var(--text-muted)]">
+                      Show daily Bar, Tithi &amp; quick auto-refresh strip on top
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={dayNotificationEnabled}
+                    onClick={onToggleDayNotification}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 cursor-pointer ${
+                      dayNotificationEnabled
+                        ? 'bg-[var(--accent-primary)] text-white'
+                        : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border border-[var(--border-subtle)]'
+                    }`}
+                  >
+                    {dayNotificationEnabled ? 'Shown' : 'Hidden'}
+                  </button>
+                </div>
+              </section>
+
               {/* Nepali Cultural Icon Theme Switcher */}
-              <section aria-labelledby="icon-theme-heading">
+              <section aria-labelledby="icon-theme-heading" className="pt-4 border-t border-[var(--border-soft)]">
                 <div className="flex items-center justify-between mb-3">
                   <h3 id="icon-theme-heading" className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-1.5">
                     <Sparkles className="h-4 w-4 text-[var(--accent-secondary)]" />
@@ -229,7 +343,7 @@ export function SettingsModal({
                     Color Palette Theme
                   </h3>
                   <span className="text-xs text-[var(--text-muted)]">
-                    {isVerifiedIdentity ? 'Synced to your account' : 'Saved on this device'}
+                    {isVerifiedIdentity ? 'Synced to Gmail' : 'Saved on this device'}
                   </span>
                 </div>
 
@@ -292,7 +406,7 @@ export function SettingsModal({
               {/* Calendar & Rashifal Preferences */}
               <section className="space-y-3 pt-4 border-t border-[var(--border-soft)]">
                 <h3 className="text-sm font-bold text-[var(--text-primary)]">
-                  Calendar & Panchang Preferences
+                  Calendar &amp; Panchang Preferences
                 </h3>
 
                 <div className="flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-[var(--bg-surface-soft)] border border-[var(--border-subtle)]">
@@ -341,18 +455,18 @@ export function SettingsModal({
                 </div>
               </section>
 
-              {/* Private Account & Security Lock */}
+              {/* Single-System Gmail Account & Security Lock */}
               <section className="space-y-3 pt-4 border-t border-[var(--border-soft)]">
                 <div className="flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-[var(--bg-surface-soft)] border border-[var(--border-subtle)]">
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-[var(--text-primary)] flex items-center gap-1.5">
                       <Cloud className="h-4 w-4 text-[var(--accent-link)]" />
-                      {isVerifiedIdentity ? 'Private Account Active' : 'Gmail & Phone Sign-In'}
+                      {isVerifiedIdentity ? 'Gmail Sync Active' : 'Gmail Account Sign-In'}
                     </p>
                     <p className="text-xs text-[var(--text-muted)] truncate">
                       {isVerifiedIdentity && user
-                        ? `Signed in as ${user.email || user.phoneNumber || user.displayName}`
-                        : 'Sign in with Gmail or Mobile OTP for private cloud backup'}
+                        ? `Signed in as ${user.email || user.displayName}`
+                        : 'Sign in with Gmail for private cloud backup'}
                     </p>
                   </div>
 
@@ -376,7 +490,7 @@ export function SettingsModal({
                       className="inline-flex items-center gap-1.5 h-10 px-3.5 rounded-xl bg-[var(--accent-primary)] text-xs font-semibold text-white hover:bg-[var(--accent-primary-hover)] whitespace-nowrap shrink-0 cursor-pointer"
                     >
                       <LogIn className="h-3.5 w-3.5" />
-                      Open Login
+                      Gmail Sign In
                     </button>
                   )}
                 </div>
@@ -393,7 +507,7 @@ export function SettingsModal({
                         Private App Lock
                       </p>
                       <p className="text-xs text-[var(--text-muted)]">
-                        Require Gmail or Phone verification before opening calendar
+                        Require Gmail sign-in before opening calendar
                       </p>
                     </div>
                   </div>
@@ -411,6 +525,7 @@ export function SettingsModal({
                     {privateLockEnabled ? 'Locked' : 'Off'}
                   </button>
                 </div>
+
                 <div className="flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-[var(--bg-surface-soft)] border border-[var(--border-subtle)]">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <Bell className="h-4 w-4 text-[var(--accent-secondary)] shrink-0" />
@@ -423,7 +538,7 @@ export function SettingsModal({
                           ? 'New live update ready to reload'
                           : unreadAlertsCount > 0
                           ? `${unreadAlertsCount} active weather/festival alerts`
-                          : 'Weather, Ekadashi, notes & auto-update alerts'}
+                          : 'Day bar, weather, Ekadashi & live alerts'}
                       </p>
                     </div>
                   </div>

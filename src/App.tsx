@@ -3,23 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { BottomNav } from './components/BottomNav';
-import { CalendarScreen } from './components/CalendarScreen';
-import { ConverterScreen } from './components/ConverterScreen';
-import { FestivalsScreen } from './components/FestivalsScreen';
+import { DayNotificationBar } from './components/DayNotificationBar';
 import { HomeScreen } from './components/HomeScreen';
-import { LoginScreen } from './components/LoginScreen';
-import { NoteModal } from './components/NoteModal';
-import { NotificationCenterModal } from './components/NotificationCenterModal';
 import { NotificationToast } from './components/NotificationToast';
 import { OfflineIndicator } from './components/OfflineIndicator';
-import { PanchangScreen } from './components/PanchangScreen';
-import { Patro3DSceneScreen } from './components/Patro3DSceneScreen';
-import { PatroAssistantScreen } from './components/PatroAssistantScreen';
-import { SettingsModal } from './components/SettingsModal';
 import { StickyDateBar } from './components/StickyDateBar';
 import { useFirebase } from './contexts/FirebaseContext';
 import { useLiveUpdates } from './hooks/useLiveUpdates';
@@ -31,11 +22,53 @@ import { useUserEvents } from './hooks/useUserEvents';
 import { useUserPreferences } from './hooks/useUserPreferences';
 import { AppScreen } from './types/app';
 import { PATRO_SPRING_SNAPPY, screenSlideVariants } from './utils/motionVariants';
+import { playNotificationChime } from './utils/notificationSound';
+
+// Code-split heavy and secondary screens/modals for fast initial render & smaller first bundle
+const CalendarScreen = lazy(() =>
+  import('./components/CalendarScreen').then((m) => ({ default: m.CalendarScreen }))
+);
+const PanchangScreen = lazy(() =>
+  import('./components/PanchangScreen').then((m) => ({ default: m.PanchangScreen }))
+);
+const ConverterScreen = lazy(() =>
+  import('./components/ConverterScreen').then((m) => ({ default: m.ConverterScreen }))
+);
+const FestivalsScreen = lazy(() =>
+  import('./components/FestivalsScreen').then((m) => ({ default: m.FestivalsScreen }))
+);
+const LoginScreen = lazy(() =>
+  import('./components/LoginScreen').then((m) => ({ default: m.LoginScreen }))
+);
+const Patro3DSceneScreen = lazy(() =>
+  import('./components/Patro3DSceneScreen').then((m) => ({ default: m.Patro3DSceneScreen }))
+);
+const SettingsModal = lazy(() =>
+  import('./components/SettingsModal').then((m) => ({ default: m.SettingsModal }))
+);
+const NotificationCenterModal = lazy(() =>
+  import('./components/NotificationCenterModal').then((m) => ({
+    default: m.NotificationCenterModal,
+  }))
+);
+const NoteModal = lazy(() =>
+  import('./components/NoteModal').then((m) => ({ default: m.NoteModal }))
+);
+
+function ScreenLoadingFallback() {
+  return (
+    <div className="space-y-4 py-6 animate-pulse" aria-busy="true" aria-label="Loading screen">
+      <div className="h-24 rounded-3xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]" />
+      <div className="h-56 rounded-3xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]" />
+    </div>
+  );
+}
 
 export default function App() {
   const { authReady, isVerifiedIdentity } = useFirebase();
-  const nepalTime = useNepalTime();
-  const weatherState = useNepalWeather();
+  const liveUpdates = useLiveUpdates();
+  const nepalTime = useNepalTime(liveUpdates.refreshTick);
+  const weatherState = useNepalWeather(liveUpdates.refreshTick);
   const { notes, isCloudSynced, addNote, deleteNote } = useUserEvents();
   const {
     preferredRashi,
@@ -47,7 +80,6 @@ export default function App() {
     updatePreferences,
   } = useUserPreferences();
 
-  const liveUpdates = useLiveUpdates();
   const notificationAlerts = useNotificationAlerts({
     nepalTime,
     weather: weatherState.weather,
@@ -195,6 +227,14 @@ export default function App() {
     [notificationAlerts, liveUpdates, handleJumpToBsDate, handleNavigate, nepalTime.todayBs]
   );
 
+  const handleToggleSound = useCallback(() => {
+    const next = !notificationAlerts.prefs.soundEnabled;
+    notificationAlerts.updatePref('soundEnabled', next);
+    if (next) {
+      void playNotificationChime('success', true);
+    }
+  }, [notificationAlerts]);
+
   return (
     <MotionConfig reducedMotion="user">
       <div className="min-h-screen bg-[var(--bg-canvas)] text-[var(--text-primary)] flex flex-col transition-colors duration-200">
@@ -215,8 +255,30 @@ export default function App() {
         {/* Main Content Container with Tactile Horizontal Swipe Navigation */}
         <main
           {...swipeHandlers}
-          className="relative flex-1 w-full max-w-6xl mx-auto px-3.5 sm:px-6 pt-3 pb-24 lg:pb-12 touch-pan-y overflow-x-clip"
+          className="relative flex-1 w-full max-w-6xl mx-auto px-3.5 sm:px-6 pt-2 pb-24 lg:pb-12 touch-pan-y overflow-x-clip space-y-3"
         >
+          {/* Day Notification Bar + Configurable Auto-Refresh (10s/15s/30s/60s/Off) + Sound Toggle */}
+          {!isLockedOut &&
+            effectiveScreen !== 'sanctuary' &&
+            notificationAlerts.prefs.dayNotificationEnabled && (
+              <DayNotificationBar
+                nepalTime={nepalTime}
+                alerts={notificationAlerts.alerts}
+                unreadCount={notificationAlerts.unreadCount}
+                autoRefreshIntervalSec={liveUpdates.autoRefreshIntervalSec}
+                isCheckingUpdates={liveUpdates.isChecking}
+                streamStatus={liveUpdates.streamStatus}
+                hasUpdateAvailable={liveUpdates.hasUpdateAvailable}
+                soundEnabled={notificationAlerts.prefs.soundEnabled}
+                onChangeAutoRefresh={liveUpdates.setAutoRefreshIntervalSec}
+                onManualRefresh={() => {
+                  void liveUpdates.checkForUpdates(false);
+                }}
+                onToggleSound={handleToggleSound}
+                onOpenNotifications={() => setNotificationsOpen(true)}
+              />
+            )}
+
           {/* Floating Edge Swipe Direction Indicator */}
           <AnimatePresence>
             {preview && (
@@ -249,117 +311,113 @@ export default function App() {
                 : { type: 'tween', duration: 0 }
             }
           >
-            <AnimatePresence mode="wait" custom={navDirection}>
-              <motion.div
-                key={effectiveScreen}
-                custom={navDirection}
-                variants={screenSlideVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-              >
-                {effectiveScreen === 'login' && (
-                  <LoginScreen
-                    iconTheme={iconTheme}
-                    privateLockEnabled={privateLockEnabled}
-                    onTogglePrivateLock={setPrivateLockEnabled}
-                    onDone={() => {
-                      if (!privateLockEnabled || isVerifiedIdentity) {
-                        setNavDirection(1);
-                        setActiveScreen('home');
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
+            <Suspense fallback={<ScreenLoadingFallback />}>
+              <AnimatePresence mode="wait" custom={navDirection}>
+                <motion.div
+                  key={effectiveScreen}
+                  custom={navDirection}
+                  variants={screenSlideVariants}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                >
+                  {effectiveScreen === 'login' && (
+                    <LoginScreen
+                      iconTheme={iconTheme}
+                      privateLockEnabled={privateLockEnabled}
+                      onTogglePrivateLock={setPrivateLockEnabled}
+                      onDone={() => {
+                        if (!privateLockEnabled || isVerifiedIdentity) {
+                          setNavDirection(1);
+                          setActiveScreen('home');
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }
+                      }}
+                    />
+                  )}
+
+                  {effectiveScreen === 'home' && (
+                    <HomeScreen
+                      nepalTime={nepalTime}
+                      weatherState={weatherState}
+                      notes={notes}
+                      isCloudSynced={isCloudSynced}
+                      preferredRashi={preferredRashi}
+                      iconTheme={iconTheme}
+                      onSelectRashi={(rashiId) => void updatePreferences({ preferredRashi: rashiId })}
+                      onNavigate={handleNavigate}
+                      onJumpToBsDate={handleJumpToBsDate}
+                      onOpenNoteModal={handleOpenNoteModal}
+                      onDeleteNote={(id) => void deleteNote(id)}
+                      onOpenSettings={() => setSettingsOpen(true)}
+                      onOpenNotifications={() => setNotificationsOpen(true)}
+                      onOpenLogin={() => handleNavigate('login')}
+                    />
+                  )}
+
+                  {effectiveScreen === 'calendar' && (
+                    <CalendarScreen
+                      nepalTime={nepalTime}
+                      selectedBs={selectedBs}
+                      viewYear={viewYear}
+                      viewMonth={viewMonth}
+                      useDevanagariNums={useDevanagariNums}
+                      onToggleDevanagariNums={() =>
+                        void updatePreferences({ useDevanagariNums: !useDevanagariNums })
                       }
-                    }}
-                  />
-                )}
+                      onSelectBs={setSelectedBs}
+                      onChangeMonth={(y, m) => {
+                        setViewYear(y);
+                        setViewMonth(m);
+                      }}
+                      notes={notes}
+                      onOpenNoteModal={handleOpenNoteModal}
+                      onDeleteNote={(id) => void deleteNote(id)}
+                    />
+                  )}
 
-                {effectiveScreen === 'home' && (
-                  <HomeScreen
-                    nepalTime={nepalTime}
-                    weatherState={weatherState}
-                    notes={notes}
-                    isCloudSynced={isCloudSynced}
-                    preferredRashi={preferredRashi}
-                    iconTheme={iconTheme}
-                    onSelectRashi={(rashiId) => void updatePreferences({ preferredRashi: rashiId })}
-                    onNavigate={handleNavigate}
-                    onJumpToBsDate={handleJumpToBsDate}
-                    onOpenNoteModal={handleOpenNoteModal}
-                    onDeleteNote={(id) => void deleteNote(id)}
-                    onOpenSettings={() => setSettingsOpen(true)}
-                    onOpenLogin={() => handleNavigate('login')}
-                  />
-                )}
+                  {effectiveScreen === 'panchang' && (
+                    <PanchangScreen
+                      nepalTime={nepalTime}
+                      preferredRashi={preferredRashi}
+                      iconTheme={iconTheme}
+                      onSelectRashi={(rashiId) => void updatePreferences({ preferredRashi: rashiId })}
+                      onJumpToBsDate={handleJumpToBsDate}
+                    />
+                  )}
 
-                {effectiveScreen === 'calendar' && (
-                  <CalendarScreen
-                    nepalTime={nepalTime}
-                    selectedBs={selectedBs}
-                    viewYear={viewYear}
-                    viewMonth={viewMonth}
-                    useDevanagariNums={useDevanagariNums}
-                    onToggleDevanagariNums={() =>
-                      void updatePreferences({ useDevanagariNums: !useDevanagariNums })
-                    }
-                    onSelectBs={setSelectedBs}
-                    onChangeMonth={(y, m) => {
-                      setViewYear(y);
-                      setViewMonth(m);
-                    }}
-                    notes={notes}
-                    onOpenNoteModal={handleOpenNoteModal}
-                    onDeleteNote={(id) => void deleteNote(id)}
-                  />
-                )}
+                  {effectiveScreen === 'converter' && (
+                    <ConverterScreen
+                      nepalTime={nepalTime}
+                      onJumpToBsDate={handleJumpToBsDate}
+                    />
+                  )}
 
-                {effectiveScreen === 'panchang' && (
-                  <PanchangScreen
-                    nepalTime={nepalTime}
-                    preferredRashi={preferredRashi}
-                    iconTheme={iconTheme}
-                    onSelectRashi={(rashiId) => void updatePreferences({ preferredRashi: rashiId })}
-                    onJumpToBsDate={handleJumpToBsDate}
-                  />
-                )}
-
-                {effectiveScreen === 'converter' && (
-                  <ConverterScreen
-                    nepalTime={nepalTime}
-                    onJumpToBsDate={handleJumpToBsDate}
-                  />
-                )}
-
-                {effectiveScreen === 'festivals' && (
-                  <FestivalsScreen
-                    nepalTime={nepalTime}
-                    notes={notes}
-                    isCloudSynced={isCloudSynced}
-                    onJumpToBsDate={handleJumpToBsDate}
-                    onOpenNoteModal={handleOpenNoteModal}
-                    onDeleteNote={(id) => void deleteNote(id)}
-                    onOpenLogin={() => handleNavigate('login')}
-                  />
-                )}
-
-                {effectiveScreen === 'assistant' && (
-                  <PatroAssistantScreen
-                    nepalTime={nepalTime}
-                    preferredRashi={preferredRashi}
-                    iconTheme={iconTheme}
-                    onAddNote={addNote}
-                  />
-                )}
-              </motion.div>
-            </AnimatePresence>
+                  {effectiveScreen === 'festivals' && (
+                    <FestivalsScreen
+                      nepalTime={nepalTime}
+                      notes={notes}
+                      isCloudSynced={isCloudSynced}
+                      onJumpToBsDate={handleJumpToBsDate}
+                      onOpenNoteModal={handleOpenNoteModal}
+                      onDeleteNote={(id) => void deleteNote(id)}
+                      onOpenLogin={() => handleNavigate('login')}
+                    />
+                  )}
+                </motion.div>
+              </AnimatePresence>
+            </Suspense>
           </motion.div>
         </main>
 
-        {/* Full-Viewport Three.js 3D Sacred Sanctuary Overlay */}
+        {/* Full-Viewport Three.js 3D Sacred Sanctuary Overlay (Lazy-loaded) */}
         {effectiveScreen === 'sanctuary' && (
-          <Patro3DSceneScreen
-            nepalTime={nepalTime}
-            onBack={() => handleNavigate('home')}
-          />
+          <Suspense fallback={<ScreenLoadingFallback />}>
+            <Patro3DSceneScreen
+              nepalTime={nepalTime}
+              onBack={() => handleNavigate('home')}
+            />
+          </Suspense>
         )}
 
         {/* Mobile Thumb-Zone Bottom Tab Bar */}
@@ -371,60 +429,75 @@ export default function App() {
           />
         )}
 
-        {/* Personal Note Creation Modal */}
-        <NoteModal
-          isOpen={noteModalOpen}
-          initialBsDate={noteModalDate}
-          onClose={() => setNoteModalOpen(false)}
-          onSave={addNote}
-        />
+        {/* Lazy-Loaded Modals */}
+        <Suspense fallback={null}>
+          <NoteModal
+            isOpen={noteModalOpen}
+            initialBsDate={noteModalDate}
+            onClose={() => setNoteModalOpen(false)}
+            onSave={addNote}
+          />
 
-        {/* App Settings & Aesthetic Theme Switcher Modal */}
-        <SettingsModal
-          isOpen={settingsOpen}
-          activeTheme={theme}
-          activeIconTheme={iconTheme}
-          useDevanagariNums={useDevanagariNums}
-          preferredRashi={preferredRashi}
-          privateLockEnabled={privateLockEnabled}
-          unreadAlertsCount={notificationAlerts.unreadCount}
-          hasLiveUpdate={liveUpdates.hasUpdateAvailable}
-          onSelectTheme={(t) => void updatePreferences({ theme: t })}
-          onSelectIconTheme={(it) => void updatePreferences({ iconTheme: it })}
-          onToggleDevanagariNums={() =>
-            void updatePreferences({ useDevanagariNums: !useDevanagariNums })
-          }
-          onSelectRashi={(r) => void updatePreferences({ preferredRashi: r })}
-          onTogglePrivateLock={setPrivateLockEnabled}
-          onOpenNotifications={() => setNotificationsOpen(true)}
-          onOpenLogin={() => handleNavigate('login')}
-          onClose={() => setSettingsOpen(false)}
-        />
+          <SettingsModal
+            isOpen={settingsOpen}
+            activeTheme={theme}
+            activeIconTheme={iconTheme}
+            useDevanagariNums={useDevanagariNums}
+            preferredRashi={preferredRashi}
+            privateLockEnabled={privateLockEnabled}
+            unreadAlertsCount={notificationAlerts.unreadCount}
+            hasLiveUpdate={liveUpdates.hasUpdateAvailable}
+            autoRefreshIntervalSec={liveUpdates.autoRefreshIntervalSec}
+            soundEnabled={notificationAlerts.prefs.soundEnabled}
+            dayNotificationEnabled={notificationAlerts.prefs.dayNotificationEnabled}
+            onSelectTheme={(t) => void updatePreferences({ theme: t })}
+            onSelectIconTheme={(it) => void updatePreferences({ iconTheme: it })}
+            onToggleDevanagariNums={() =>
+              void updatePreferences({ useDevanagariNums: !useDevanagariNums })
+            }
+            onSelectRashi={(r) => void updatePreferences({ preferredRashi: r })}
+            onTogglePrivateLock={setPrivateLockEnabled}
+            onChangeAutoRefresh={liveUpdates.setAutoRefreshIntervalSec}
+            onToggleSound={handleToggleSound}
+            onToggleDayNotification={() =>
+              notificationAlerts.updatePref(
+                'dayNotificationEnabled',
+                !notificationAlerts.prefs.dayNotificationEnabled
+              )
+            }
+            onPlayTestSound={notificationAlerts.playTestSound}
+            onOpenNotifications={() => setNotificationsOpen(true)}
+            onOpenLogin={() => handleNavigate('login')}
+            onClose={() => setSettingsOpen(false)}
+          />
 
-        {/* Notification Alert & Live Update Center Modal */}
-        <NotificationCenterModal
-          isOpen={notificationsOpen}
-          alerts={notificationAlerts.alerts}
-          unreadCount={notificationAlerts.unreadCount}
-          prefs={notificationAlerts.prefs}
-          permission={notificationAlerts.permission}
-          currentBuildId={liveUpdates.currentBuildId}
-          latestVersionInfo={liveUpdates.latestVersionInfo}
-          hasUpdateAvailable={liveUpdates.hasUpdateAvailable}
-          isCheckingUpdates={liveUpdates.isChecking}
-          isNativeCapacitor={liveUpdates.isNativeCapacitor}
-          streamStatus={liveUpdates.streamStatus}
-          onUpdatePref={notificationAlerts.updatePref}
-          onRequestPermission={notificationAlerts.requestPermission}
-          onSendTestNotification={notificationAlerts.sendTestNotification}
-          onCheckForUpdates={liveUpdates.checkForUpdates}
-          onApplyLiveUpdate={liveUpdates.applyLiveUpdate}
-          onAlertAction={handleAlertAction}
-          onMarkRead={notificationAlerts.markAsRead}
-          onMarkAllRead={notificationAlerts.markAllRead}
-          onDismissAlert={notificationAlerts.dismissAlert}
-          onClose={() => setNotificationsOpen(false)}
-        />
+          <NotificationCenterModal
+            isOpen={notificationsOpen}
+            alerts={notificationAlerts.alerts}
+            unreadCount={notificationAlerts.unreadCount}
+            prefs={notificationAlerts.prefs}
+            permission={notificationAlerts.permission}
+            currentBuildId={liveUpdates.currentBuildId}
+            latestVersionInfo={liveUpdates.latestVersionInfo}
+            hasUpdateAvailable={liveUpdates.hasUpdateAvailable}
+            isCheckingUpdates={liveUpdates.isChecking}
+            isNativeCapacitor={liveUpdates.isNativeCapacitor}
+            streamStatus={liveUpdates.streamStatus}
+            autoRefreshIntervalSec={liveUpdates.autoRefreshIntervalSec}
+            onChangeAutoRefresh={liveUpdates.setAutoRefreshIntervalSec}
+            onUpdatePref={notificationAlerts.updatePref}
+            onRequestPermission={notificationAlerts.requestPermission}
+            onPlayTestSound={notificationAlerts.playTestSound}
+            onSendTestNotification={notificationAlerts.sendTestNotification}
+            onCheckForUpdates={() => liveUpdates.checkForUpdates(false)}
+            onApplyLiveUpdate={liveUpdates.applyLiveUpdate}
+            onAlertAction={handleAlertAction}
+            onMarkRead={notificationAlerts.markAsRead}
+            onMarkAllRead={notificationAlerts.markAllRead}
+            onDismissAlert={notificationAlerts.dismissAlert}
+            onClose={() => setNotificationsOpen(false)}
+          />
+        </Suspense>
 
         {/* Live Toast Notification Banner */}
         <NotificationToast

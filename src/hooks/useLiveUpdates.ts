@@ -12,6 +12,34 @@ export interface LiveVersionInfo {
 }
 
 export type LiveStreamStatus = 'live' | 'connecting' | 'reconnecting' | 'offline' | 'native';
+export type AutoRefreshIntervalSec = 0 | 10 | 15 | 30 | 60;
+
+export const AUTO_REFRESH_OPTIONS: Array<{
+  value: AutoRefreshIntervalSec;
+  label: string;
+  shortLabel: string;
+}> = [
+  { value: 10, label: '10 sec', shortLabel: '10s' },
+  { value: 15, label: '15 sec', shortLabel: '15s' },
+  { value: 30, label: '30 sec', shortLabel: '30s' },
+  { value: 60, label: '60 sec', shortLabel: '60s' },
+  { value: 0, label: 'Off (Manual)', shortLabel: 'Off' },
+];
+
+const AUTO_REFRESH_STORAGE_KEY = 'nepal_patro_auto_refresh_sec_v1';
+
+function readStoredRefreshSec(): AutoRefreshIntervalSec {
+  try {
+    const raw = localStorage.getItem(AUTO_REFRESH_STORAGE_KEY);
+    const num = Number(raw);
+    if (num === 0 || num === 10 || num === 15 || num === 30 || num === 60) {
+      return num;
+    }
+  } catch {
+    // Ignore storage error
+  }
+  return 15;
+}
 
 function detectNativeCapacitor(): boolean {
   if (typeof window === 'undefined') return false;
@@ -26,6 +54,10 @@ export function useLiveUpdates() {
   const [serverUpdateAvailable, setServerUpdateAvailable] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [lastCheckedAt, setLastCheckedAt] = useState<number | null>(null);
+  const [autoRefreshIntervalSec, setAutoRefreshIntervalSecState] =
+    useState<AutoRefreshIntervalSec>(() => readStoredRefreshSec());
+  const [refreshTick, setRefreshTick] = useState(0);
+  const [lastAutoRefreshAt, setLastAutoRefreshAt] = useState<number | null>(() => Date.now());
   const [streamStatus, setStreamStatus] = useState<LiveStreamStatus>(
     isNativeCapacitor ? 'native' : 'connecting'
   );
@@ -36,12 +68,22 @@ export function useLiveUpdates() {
   const baselineBuildIdRef = useRef<string | null>(null);
   const swRegistrationRef = useRef<ServiceWorkerRegistration | null>(null);
   const updateSwFnRef = useRef<((reloadPage?: boolean) => Promise<void>) | null>(null);
+  const checkingRef = useRef(false);
   const [latestVersionInfo, setLatestVersionInfo] = useState<LiveVersionInfo>({
     appName: 'Nepal Patro',
     version: clientVersion,
     buildId: clientBuildId,
     builtAt: typeof __APP_BUILD_TIME__ !== 'undefined' ? __APP_BUILD_TIME__ : '',
   });
+
+  const setAutoRefreshIntervalSec = useCallback((sec: AutoRefreshIntervalSec) => {
+    setAutoRefreshIntervalSecState(sec);
+    try {
+      localStorage.setItem(AUTO_REFRESH_STORAGE_KEY, String(sec));
+    } catch {
+      // Ignore storage error
+    }
+  }, []);
 
   // 1. Register PWA Service Worker on Web (skip inside Capacitor native APK WebView)
   useEffect(() => {
@@ -160,32 +202,56 @@ export function useLiveUpdates() {
     };
   }, [isNativeCapacitor, evaluateServerVersion]);
 
-  const checkForUpdates = useCallback(async () => {
-    if (isNativeCapacitor || isChecking) return false;
-    setIsChecking(true);
-    let foundUpdate = false;
-    try {
-      if (swRegistrationRef.current) {
-        await swRegistrationRef.current.update();
-      }
-      const res = await fetch(`/api/version?t=${Date.now()}`, { cache: 'no-store' });
-      if (res.ok) {
-        const data = (await res.json()) as LiveVersionInfo & { ok?: boolean };
-        if (data.buildId) {
-          if (baselineBuildIdRef.current && data.buildId !== baselineBuildIdRef.current) {
-            foundUpdate = true;
-          }
-          evaluateServerVersion(data);
+  const checkForUpdates = useCallback(
+    async (silent = false) => {
+      setRefreshTick((t) => t + 1);
+      setLastAutoRefreshAt(Date.now());
+
+      if (isNativeCapacitor || checkingRef.current) return false;
+      if (typeof navigator !== 'undefined' && !navigator.onLine) return false;
+
+      checkingRef.current = true;
+      if (!silent) setIsChecking(true);
+      let foundUpdate = false;
+      try {
+        if (!silent && swRegistrationRef.current) {
+          await swRegistrationRef.current.update();
         }
+        const res = await fetch(`/api/version?t=${Date.now()}`, { cache: 'no-store' });
+        if (res.ok) {
+          const data = (await res.json()) as LiveVersionInfo & { ok?: boolean };
+          if (data.buildId) {
+            if (baselineBuildIdRef.current && data.buildId !== baselineBuildIdRef.current) {
+              foundUpdate = true;
+            }
+            evaluateServerVersion(data);
+          }
+        }
+      } catch {
+        // Offline or unreachable
+      } finally {
+        setLastCheckedAt(Date.now());
+        checkingRef.current = false;
+        if (!silent) setIsChecking(false);
       }
-    } catch {
-      // Offline or unreachable
-    } finally {
-      setLastCheckedAt(Date.now());
-      setIsChecking(false);
-    }
-    return foundUpdate || swNeedRefresh || serverUpdateAvailable;
-  }, [isNativeCapacitor, isChecking, evaluateServerVersion, swNeedRefresh, serverUpdateAvailable]);
+      return foundUpdate || swNeedRefresh || serverUpdateAvailable;
+    },
+    [isNativeCapacitor, evaluateServerVersion, swNeedRefresh, serverUpdateAvailable]
+  );
+
+  // 3. Configurable Auto-Refresh Timer (10s / 15s / 30s / 60s / Off)
+  useEffect(() => {
+    if (autoRefreshIntervalSec <= 0) return;
+
+    const timer = window.setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+        return;
+      }
+      void checkForUpdates(true);
+    }, autoRefreshIntervalSec * 1000);
+
+    return () => window.clearInterval(timer);
+  }, [autoRefreshIntervalSec, checkForUpdates]);
 
   const applyLiveUpdate = useCallback(async () => {
     if (swNeedRefresh && updateSwFnRef.current) {
@@ -208,6 +274,10 @@ export function useLiveUpdates() {
     isNativeCapacitor,
     streamStatus,
     lastCheckedAt,
+    autoRefreshIntervalSec,
+    refreshTick,
+    lastAutoRefreshAt,
+    setAutoRefreshIntervalSec,
     checkForUpdates,
     applyLiveUpdate,
   };

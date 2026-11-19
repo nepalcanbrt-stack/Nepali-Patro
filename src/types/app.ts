@@ -4,7 +4,6 @@ export type AppScreen =
   | 'panchang'
   | 'converter'
   | 'festivals'
-  | 'assistant'
   | 'sanctuary'
   | 'login';
 

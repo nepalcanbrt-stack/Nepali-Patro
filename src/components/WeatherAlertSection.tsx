@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   Cloud,
@@ -40,7 +41,7 @@ interface WeatherAlertSectionProps {
   weatherState?: ReturnType<typeof useNepalWeather>;
 }
 
-export function WeatherAlertSection({ weatherState }: WeatherAlertSectionProps) {
+export const WeatherAlertSection = memo(function WeatherAlertSection({ weatherState }: WeatherAlertSectionProps) {
   const localWeatherState = useNepalWeather();
   const { cityId, cities, preset, weather, selectCity, selectPreset, refreshWeather } =
     weatherState ?? localWeatherState;
@@ -233,4 +234,4 @@ export function WeatherAlertSection({ weatherState }: WeatherAlertSectionProps) 
       )}
     </section>
   );
-}
+});

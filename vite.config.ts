@@ -143,6 +143,28 @@ export default defineConfig(() => {
         '@': path.resolve(import.meta.dirname, '.'),
       },
     },
+    build: {
+      rolldownOptions: {
+        output: {
+          codeSplitting: {
+            groups: [
+              {
+                name: 'three-vendor',
+                test: /node_modules[\\/]three/,
+              },
+              {
+                name: 'firebase-vendor',
+                test: /node_modules[\\/](firebase|@firebase)/,
+              },
+              {
+                name: 'motion-vendor',
+                test: /node_modules[\\/](motion|framer-motion)/,
+              },
+            ],
+          },
+        },
+      },
+    },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modify—file watching is disabled to prevent flickering during agent edits.

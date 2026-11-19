@@ -148,7 +148,7 @@ function buildPrivateLocalWeather(
   };
 }
 
-export function useNepalWeather() {
+export function useNepalWeather(refreshSignal = 0) {
   const [cityId, setCityId] = useState<string>(() => {
     try {
       const saved = localStorage.getItem(CITY_STORAGE_KEY);
@@ -207,7 +207,7 @@ export function useNepalWeather() {
     refreshWeather();
     const interval = window.setInterval(refreshWeather, 5 * 60 * 1000);
     return () => window.clearInterval(interval);
-  }, [refreshWeather]);
+  }, [refreshWeather, refreshSignal]);
 
   return {
     cityId,

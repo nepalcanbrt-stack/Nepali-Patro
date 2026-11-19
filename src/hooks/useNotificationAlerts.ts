@@ -1,13 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { NEPALI_FESTIVALS } from '../data/bsCalendarData';
 import { UserNote } from '../types/app';
-import { bsToKey, diffBsDays, formatBsDateNe, toDevanagari } from '../utils/nepaliDate';
+import {
+  bsToKey,
+  diffBsDays,
+  formatBsDateNe,
+  getWeekdayNameEn,
+  getWeekdayNameNe,
+  toDevanagari,
+} from '../utils/nepaliDate';
+import { attachAudioUnlockListeners, playNotificationChime } from '../utils/notificationSound';
 import { evaluateSubhaSaait } from '../utils/panchang';
 import { LiveVersionInfo } from './useLiveUpdates';
 import { NepalTimeState } from './useNepalTime';
 import { NepalWeatherData } from './useNepalWeather';
 
-export type AlertCategory = 'update' | 'weather' | 'festival' | 'note' | 'saait';
+export type AlertCategory = 'day' | 'update' | 'weather' | 'festival' | 'note' | 'saait';
 
 export interface AppNotificationAlert {
   id: string;
@@ -25,6 +33,8 @@ export interface AppNotificationAlert {
 
 export interface NotificationPrefs {
   browserNotifications: boolean;
+  soundEnabled: boolean;
+  dayNotificationEnabled: boolean;
   weatherAlerts: boolean;
   festivalAlerts: boolean;
   noteReminders: boolean;
@@ -37,6 +47,8 @@ const STATE_KEY = 'nepal_patro_notif_state_v1';
 
 const DEFAULT_PREFS: NotificationPrefs = {
   browserNotifications: true,
+  soundEnabled: true,
+  dayNotificationEnabled: true,
   weatherAlerts: true,
   festivalAlerts: true,
   noteReminders: true,
@@ -60,6 +72,14 @@ function readStoredPrefs(): NotificationPrefs {
           typeof parsed.browserNotifications === 'boolean'
             ? parsed.browserNotifications
             : DEFAULT_PREFS.browserNotifications,
+        soundEnabled:
+          typeof parsed.soundEnabled === 'boolean'
+            ? parsed.soundEnabled
+            : DEFAULT_PREFS.soundEnabled,
+        dayNotificationEnabled:
+          typeof parsed.dayNotificationEnabled === 'boolean'
+            ? parsed.dayNotificationEnabled
+            : DEFAULT_PREFS.dayNotificationEnabled,
         weatherAlerts:
           typeof parsed.weatherAlerts === 'boolean'
             ? parsed.weatherAlerts
@@ -184,6 +204,11 @@ export function useNotificationAlerts({
   const [activeToast, setActiveToast] = useState<AppNotificationAlert | null>(null);
   const lastBootToastRef = useRef<string | null>(null);
 
+  // Unlock Web Audio cleanly on first user interaction so auto notification chimes play reliably
+  useEffect(() => {
+    return attachAudioUnlockListeners();
+  }, []);
+
   useEffect(() => {
     try {
       localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
@@ -221,18 +246,24 @@ export function useNotificationAlerts({
     }
   }, []);
 
+  const playTestSound = useCallback(async () => {
+    return playNotificationChime('success', true);
+  }, []);
+
   const sendTestNotification = useCallback(async () => {
     let currentPerm = getBrowserPermission();
     if (currentPerm === 'default') {
       currentPerm = await requestPermission();
     }
+    const weekdayNe = getWeekdayNameNe(nepalTime.todayBs.weekday);
+    const weekdayEn = getWeekdayNameEn(nepalTime.todayAd.weekday);
     const testAlert: AppNotificationAlert = {
       id: `test-alert-${Date.now()}`,
-      category: 'festival',
+      category: 'day',
       severity: 'info',
-      titleEn: 'Nepal Patro Alert Active',
-      titleNe: 'नेपाल पात्रो सूचना सक्रिय छ',
-      body: `${formatBsDateNe(nepalTime.todayBs)} · ${nepalTime.panchang.fullTithiNe} · Alerts ready for weather, Ekadashi & updates.`,
+      titleEn: `${weekdayEn} · Nepal Patro Alert Active`,
+      titleNe: `${weekdayNe} · नेपाल पात्रो सूचना सक्रिय छ`,
+      body: `${formatBsDateNe(nepalTime.todayBs)} · ${nepalTime.panchang.fullTithiNe} · Auto-alerts & chime active.`,
       timestampLabel: `${nepalTime.timeFormatted} NST`,
       actionLabel: 'View Calendar',
       actionType: 'calendar',
@@ -240,6 +271,9 @@ export function useNotificationAlerts({
       read: false,
     };
     setActiveToast(testAlert);
+    if (prefs.soundEnabled) {
+      void playNotificationChime('info', true);
+    }
     if (currentPerm === 'granted') {
       await showNativeOrWebNotification(
         `${testAlert.titleNe} · ${testAlert.titleEn}`,
@@ -248,11 +282,13 @@ export function useNotificationAlerts({
       );
     }
     return currentPerm;
-  }, [nepalTime, requestPermission]);
+  }, [nepalTime, prefs.soundEnabled, requestPermission]);
 
   // Build real, live-evaluated notification list
   const alerts = useMemo<AppNotificationAlert[]>(() => {
     const todayKey = bsToKey(nepalTime.todayBs.year, nepalTime.todayBs.month, nepalTime.todayBs.day);
+    const weekdayNe = getWeekdayNameNe(nepalTime.todayBs.weekday);
+    const weekdayEn = getWeekdayNameEn(nepalTime.todayAd.weekday);
     const items: AppNotificationAlert[] = [];
 
     // 1. Live Update Alert
@@ -378,13 +414,13 @@ export function useNotificationAlerts({
     }
 
     // 5. Subha Saait & Rahu Kaal Status
+    const saait = evaluateSubhaSaait(
+      nepalTime.todayBs,
+      nepalTime.panchang,
+      nepalTime.hours,
+      nepalTime.minutes
+    );
     if (prefs.saaitAlerts) {
-      const saait = evaluateSubhaSaait(
-        nepalTime.todayBs,
-        nepalTime.panchang,
-        nepalTime.hours,
-        nepalTime.minutes
-      );
       if (saait.inRahuKaal) {
         items.push({
           id: `rahu-kaal-${todayKey}-${nepalTime.panchang.rahuKaal}`,
@@ -414,6 +450,23 @@ export function useNotificationAlerts({
       }
     }
 
+    // 6. Daily Day Summary Notification (Weekday, Tithi, Sunrise/Sunset)
+    if (prefs.dayNotificationEnabled) {
+      items.push({
+        id: `day-summary-${todayKey}`,
+        category: 'day',
+        severity: 'info',
+        titleEn: `${weekdayEn} · ${nepalTime.panchang.tithiEn}`,
+        titleNe: `आज ${weekdayNe} · ${formatBsDateNe(nepalTime.todayBs)}`,
+        body: `${nepalTime.panchang.fullTithiNe} · ${nepalTime.panchang.nakshatraNe} नक्षत्र · शुभ साइत ${saait.windowEn}`,
+        timestampLabel: `${nepalTime.timeFormatted} NST`,
+        actionLabel: 'Open Patro',
+        actionType: 'calendar',
+        targetBs: nepalTime.todayBs,
+        read: false,
+      });
+    }
+
     const dismissedSet = new Set(notifState.dismissedIds);
     const readSet = new Set(notifState.readIds);
 
@@ -434,14 +487,16 @@ export function useNotificationAlerts({
     notifState.readIds,
   ]);
 
-  // Auto-surface floating toast + OS notification for newly triggered high-priority alerts
+  // Auto-surface floating toast + auto chime sound + OS notification for newly triggered alerts
   useEffect(() => {
     const candidate = alerts.find(
       (a) =>
         !a.read &&
         (a.category === 'update' ||
           a.severity === 'critical' ||
-          a.category === 'weather') &&
+          a.category === 'weather' ||
+          a.category === 'day' ||
+          a.category === 'note') &&
         !notifState.dispatchedToastIds.includes(a.id)
     );
 
@@ -454,6 +509,10 @@ export function useNotificationAlerts({
       dispatchedToastIds: [...prev.dispatchedToastIds.slice(-90), candidate.id],
     }));
 
+    if (prefs.soundEnabled) {
+      void playNotificationChime(candidate.severity);
+    }
+
     if (prefs.browserNotifications && permission === 'granted') {
       void showNativeOrWebNotification(
         `${candidate.titleNe} · ${candidate.titleEn}`,
@@ -461,7 +520,7 @@ export function useNotificationAlerts({
         candidate.id
       );
     }
-  }, [alerts, notifState.dispatchedToastIds, prefs.browserNotifications, permission]);
+  }, [alerts, notifState.dispatchedToastIds, prefs.browserNotifications, prefs.soundEnabled, permission]);
 
   const markAsRead = useCallback((id: string) => {
     setNotifState((prev) => ({
@@ -501,6 +560,7 @@ export function useNotificationAlerts({
     activeToast,
     updatePref,
     requestPermission,
+    playTestSound,
     sendTestNotification,
     markAsRead,
     markAllRead,

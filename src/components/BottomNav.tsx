@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { motion } from 'motion/react';
 import { AppScreen } from '../types/app';
 import { IconThemeId } from '../types/theme';
@@ -19,19 +20,22 @@ const TABS: Array<{
   { id: 'home', label: 'Home', labelNe: 'गृह', iconName: 'home' },
   { id: 'calendar', label: 'Patro', labelNe: 'पात्रो', iconName: 'calendar' },
   { id: 'panchang', label: 'Panchang', labelNe: 'पञ्चाङ्ग', iconName: 'panchang' },
-  { id: 'assistant', label: 'AI Guide', labelNe: 'सहायक', iconName: 'assistant' },
   { id: 'sanctuary', label: '3D Stupa', labelNe: '३डी', iconName: 'sanctuary' },
   { id: 'festivals', label: 'Festivals', labelNe: 'चाडपर्व', iconName: 'festivals' },
 ];
 
-export function BottomNav({ activeScreen, iconTheme, onNavigate }: BottomNavProps) {
+export const BottomNav = memo(function BottomNav({
+  activeScreen,
+  iconTheme,
+  onNavigate,
+}: BottomNavProps) {
   return (
     <nav
       aria-label="Mobile navigation"
       style={{ boxShadow: '0 -6px 24px -12px rgba(0,0,0,0.18)' }}
       className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[var(--bg-nav)] backdrop-blur-md border-t border-[var(--border-subtle)] pb-safe"
     >
-      <div className="grid grid-cols-6 items-center h-15 max-w-lg mx-auto px-0.5">
+      <div className="grid grid-cols-5 items-center h-15 max-w-lg mx-auto px-1">
         {TABS.map((tab) => {
           const isActive = activeScreen === tab.id;
           return (
@@ -71,4 +75,4 @@ export function BottomNav({ activeScreen, iconTheme, onNavigate }: BottomNavProp
       </div>
     </nav>
   );
-}
+});

@@ -7,7 +7,6 @@ export const SWIPE_SCREEN_ORDER: AppScreen[] = [
   'panchang',
   'converter',
   'festivals',
-  'assistant',
 ];
 
 export const SCREEN_LABELS: Record<AppScreen, { en: string; ne: string }> = {
@@ -16,7 +15,6 @@ export const SCREEN_LABELS: Record<AppScreen, { en: string; ne: string }> = {
   panchang: { en: 'Panchang', ne: 'पञ्चाङ्ग' },
   converter: { en: 'Converter', ne: 'रूपान्तरण' },
   festivals: { en: 'Festivals', ne: 'चाडपर्व' },
-  assistant: { en: 'AI Guide', ne: 'ज्योतिष AI' },
   sanctuary: { en: '3D Stupa', ne: '३डी मन्दिर' },
   login: { en: 'Account', ne: 'खाता' },
 };
